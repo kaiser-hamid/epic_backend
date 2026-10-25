@@ -1,3 +1,79 @@
+# Epic Health Care ERP (backend)
+
+Modular-monolith ERP for a diagnostic center, built to gradually replace a subscription vendor system. Laravel 13, PHP 8.4, PostgreSQL 18, Redis. Full detail is in `README.md`; the first module's scope is in `docs/features/blood abank/brief.md`, its plan in `docs/features/blood abank/plan.md`, and the table-by-table data flow in `modules/BloodBank/workflow.md` (keep it in sync when Blood Bank tables change).
+
+## Architecture
+
+- Business code lives in `modules/{Name}/` (PSR-4 `Modules\`), not `app/`. `app/` is bootstrap only.
+- Modules: `Shared` (kernel: Auth, RBAC, Audit, Patient, Doctor, TestCatalog, Billing, Printing, Numbering, ExternalReference, Notification, Support) and `BloodBank` (in progress). Others are planned.
+- Capabilities every module needs (e.g. print logs) belong in `Shared` behind a contract, not copied per module.
+- Polymorphic columns store morph aliases (`bb.sample`, `bb.unit`), never class names. Each module registers its aliases with `Relation::morphMap()` in its service provider (non-enforcing, so packages like spatie/permission keep working).
+- Module layout: `Actions`, `Contracts`, `Data`, `Database/{Factories,Migrations,Seeders}`, `Enums`, `Events`, `Exceptions`, `Http/{Controllers,Middleware,Resources}`, `Jobs`, `Listeners`, `Models`, `Policies`, `Providers`, `Queries`, `Resources/views`, `Routes/api.php`, `Services`, `Tests/{Feature,Unit}`.
+- Module providers are registered in `bootstrap/providers.php`.
+
+### Boundary rules (enforced by arch tests; do not break)
+
+1. A module owns its tables; no other module writes to them.
+2. Never import another module's `Models`. Use its `Contracts` or domain events.
+3. Only `Shared` may be used freely by all modules; keep it small.
+4. Cross-module reporting uses DB views or read models, not ad-hoc joins.
+
+## Request flow and conventions
+
+Route → Controller → Data object (laravel-data validates) → permission check → `Action::handle(Data)` → `DB::transaction` → Resource.
+
+- Routes are module-specific: define them in `modules/{Name}/Routes/api.php` (loaded by the module's service provider), never in the global `routes/` files (those are for global routes like the health check only).
+- Controllers: very thin. Each controller method calls exactly one Action (or Query) for one specific task and returns a Resource. No business logic, queries, or transactions.
+- Actions: `final`, named verb+noun (`IssueBloodUnit`), one specific task each. The only public method is `handle()`; it may delegate to as many private methods as needed. Actions own the transaction. An Action may call another Action.
+- Dependency injection: always via the constructor (promoted properties). Do not resolve dependencies with `app()`, facades-as-locators, or method-level `new` for injectable classes.
+- Services: commonly reusable functionality shared across Actions (or modules via `Contracts`). Actions call Services. A Service is not a user-facing use case. External providers (SMS, WhatsApp, LIS) go behind an interface in `Contracts/` and are faked in tests.
+- Data: extend `Spatie\LaravelData\Data` with `#[MapName(SnakeCaseMapper::class)]`; validation lives here; `Optional|type` for partial updates. Never pass raw request arrays to Actions.
+- Queries: read side only, using `spatie/laravel-query-builder` with explicit allowed filters, sorts and includes.
+- Events after a DB write implement `ShouldDispatchAfterCommit`. Each side effect is its own queued listener declaring `$queue`, `$tries`, `$backoff`.
+- `final` classes by default. PHP Enums for every status/type/category, cast on the model; no magic strings.
+- No generic repository layer; use Eloquent directly.
+- `env()` only inside `config/`.
+- Money is integer paisa (`bigint`), never float. Totals are always computed server-side.
+- Timezone is `Asia/Dhaka`. `Model::shouldBeStrict()` is on outside production.
+
+## API
+
+- Path: `/api/{module}/{resource}` (e.g. `/api/blood-bank/requests`); JSON keys `snake_case`; dates ISO 8601.
+- Success: `{"data": ...}`; collections add `meta`.
+- Errors are rendered centrally in `bootstrap/app.php` as `{"message", "code"}`; validation errors use `code: VALIDATION_FAILED` plus `errors`. Domain exceptions extend `Modules\Shared\Support\Exceptions\DomainException` and define `errorCode()` and `status()`. The frontend reacts to `code`, not `message`.
+
+## Database
+
+- Table prefix per module: `sh_` (Shared), `bb_` (Blood Bank), `lab_`, `bill_`.
+- Use `timestampsTz()`/`timestampTz()`; always declare foreign key constraints.
+- `jsonb` only for snapshots/metadata, not regularly queried data.
+- No hard deletes of business records: soft delete or status change.
+- Medical results/reports are versioned: an amendment creates a new version with a reason, keeping the old one.
+- Human-facing numbers (invoice, request, unit no) come from the Shared Numbering service, never auto-increment IDs.
+
+## Audit and access
+
+- Every create/update/delete is audit-logged (actor, action, entity, old/new values, IP, user agent). Also log logins, failed logins, report print/reprint, exports, and safety overrides (reason mandatory). The audit log is append-only.
+- Prints and reprints are recorded through the Shared `Modules\Shared\Printing\Contracts\PrintLogger` into `sh_print_logs`; it decides `is_reprint` and rejects a reprint without a reason (`REPRINT_REASON_REQUIRED`). Each module owns its printable document types as a backed enum with module-prefixed values (`bb.sample_label`) and decides who may reprint (permission + Policy).
+- Permissions via `spatie/laravel-permission`, granular per action (e.g. `bb.request.create`, `bb.unit.issue`). Record-level rules live in Policies.
+
+## Testing
+
+- Only write tests that protect business rules or behavior: Actions, Services, Policies, domain exceptions, API contracts (status, `code`, response shape), and bugs being fixed.
+- Do not write tests for schema or framework behavior: migrations/tables existing, factories persisting, casts, Eloquent relationships, or DB constraints, unless a business rule depends on them and nothing else covers it.
+- Do not add tests for every change by default; one focused test per rule beats many overlapping ones. If unsure whether a test is worth it, ask.
+
+## Commands
+
+- Tests: `php artisan test --compact` (Pest; feature, unit, `tests/Arch`)
+- Static analysis: `./vendor/bin/phpstan analyse` (Larastan)
+- Style: `vendor/bin/pint --dirty --format agent`
+- Dev: `php artisan serve`, `php artisan horizon`, `php artisan schedule:work`
+
+## Adding a module
+
+Create `modules/{Name}/` with the standard layout, add a `{Name}ServiceProvider` and register it in `bootstrap/providers.php`, pick a table prefix, define `Contracts` first, seed permissions, add arch tests, and update the README module table.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

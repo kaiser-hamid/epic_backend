@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Modules\Shared\Support\Exceptions\DomainException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,4 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        $exceptions->render(fn (DomainException $exception) => response()->json([
+            'message' => $exception->getMessage(),
+            'code' => $exception->errorCode(),
+        ], $exception->status()));
     })->create();
