@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -13,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\BloodBank\Database\Factories\SampleFactory;
 use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SampleSubject;
+use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_samples')]
 #[Fillable(['sample_no', 'case_id', 'case_donor_id', 'subject_type', 'collected_at', 'collected_by', 'status'])]

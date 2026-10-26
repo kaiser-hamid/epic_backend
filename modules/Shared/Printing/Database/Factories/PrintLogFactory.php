@@ -2,8 +2,8 @@
 
 namespace Modules\Shared\Printing\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Models\Billing;
 use Modules\Shared\Printing\Models\PrintLog;
 

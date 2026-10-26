@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -14,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\BloodBank\Database\Factories\CrossmatchFactory;
 use Modules\BloodBank\Enums\CrossmatchResult;
 use Modules\BloodBank\Enums\TestResultStatus;
+use Modules\Shared\Auth\Models\User;
 
 /**
  * Compatibility test of a patient sample against one unit (bag), whether the unit came from the case's own

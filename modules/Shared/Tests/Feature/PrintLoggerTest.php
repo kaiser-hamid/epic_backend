@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\User;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Models\Billing;
 use Modules\Shared\Printing\Contracts\PrintLogger;
 use Modules\Shared\Printing\Exceptions\ReprintReasonRequired;

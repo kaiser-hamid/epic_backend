@@ -38,7 +38,8 @@ The system is a **modular monolith**: one Laravel application, one PostgreSQL da
 | Queue monitoring | Laravel Horizon |
 | DTO & validation | `spatie/laravel-data` |
 | List filtering & sorting | `spatie/laravel-query-builder` |
-| Roles & permissions | `spatie/laravel-permission` |
+| Authentication | `laravel/sanctum` (SPA cookie sessions for the Next.js frontend) |
+| Branch permissions | Custom Shared RBAC (`sh_user_branch_permissions`) |
 | PDF generation | `mpdf/mpdf` |
 | File storage | Local disk |
 | Monitor | `Prometheus & Grafana` (self-hosted) OR `laravel/pulse` |
@@ -364,8 +365,11 @@ The existing vendor system has no API or database access. Until it is replaced:
 
 ### Access control
 
-- Roles and permissions via `spatie/laravel-permission`, managed by admin.
-- Permissions are granular per action (e.g. `bb.request.create`, `bb.unit.issue`); one user may hold several roles.
+- Login is username + password + branch. The session works in that one branch; switching branch means logging in again.
+- Permissions are granular per action (e.g. `bb.request.create`, `bb.unit.issue`) and granted **per branch**: a grant in Branch A gives nothing in Branch B.
+- Roles are admin-UI templates only (picking "Cash" pre-checks its permissions). They are never assigned to users and never checked.
+- Super admin (IT/Developer only) bypasses checks and is set only with `php artisan auth:super-admin {username} [--revoke]`.
+- Permission names are backed enums per module, registered with `PermissionRegistry`; `php artisan permissions:sync` mirrors them into `sh_permissions`.
 - Record-level rules (e.g. an issued unit cannot be edited) live in Policies.
 
 ### Security basics
@@ -417,7 +421,8 @@ REDIS_PORT=6379
 
 CACHE_STORE=redis
 QUEUE_CONNECTION=redis
-SESSION_DRIVER=redis
+# database: the sessions table lets users see and revoke their devices
+SESSION_DRIVER=database
 
 SMS_URL=
 SMS_API_KEY=
@@ -515,7 +520,7 @@ Every pull request must pass: Pint, Larastan, all Pest tests. Safety-critical lo
 3. Register the provider in `bootstrap/providers.php`.
 4. Choose a table prefix and add it to the [Database Conventions](#database-conventions) table.
 5. Define the module's public `Contracts` before any other module depends on it.
-6. Add permissions for the module and seed them.
+6. Add a backed permission enum implementing `PermissionDefinition`, register it with `PermissionRegistry` in the provider, and run `php artisan permissions:sync`.
 7. Add architecture tests for its boundaries.
 8. Update the [Modules](#modules) table in this README.
 

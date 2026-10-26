@@ -1,6 +1,12 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Shared\Auth\Models\User;
+use Modules\Shared\Branch\Models\Branch;
+use Modules\Shared\Branch\Services\SessionCurrentBranch;
+use Modules\Shared\Rbac\Actions\SyncPermissionCatalog;
+use Modules\Shared\Rbac\Models\Permission;
+use Modules\Shared\Rbac\Models\UserBranchPermission;
 use Tests\TestCase;
 
 /*
@@ -44,7 +50,28 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Grant permissions to a user in one branch, syncing the permission catalog first.
+ */
+function grantInBranch(User $user, Branch $branch, BackedEnum|string ...$permissions): void
 {
-    // ..
+    app(SyncPermissionCatalog::class)->handle();
+
+    foreach ($permissions as $permission) {
+        UserBranchPermission::create([
+            'user_id' => $user->id,
+            'branch_id' => $branch->id,
+            'permission_id' => Permission::where('name', $permission instanceof BackedEnum ? $permission->value : $permission)->value('id'),
+        ]);
+    }
+}
+
+/**
+ * Act as a signed-in user whose session works in the given branch, the way the Next.js frontend calls the API.
+ */
+function signInToBranch(TestCase $test, User $user, Branch $branch): TestCase
+{
+    return $test->actingAs($user)
+        ->withHeader('Referer', 'http://localhost')
+        ->withSession([SessionCurrentBranch::SESSION_KEY => $branch->id]);
 }

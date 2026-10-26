@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -11,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\BloodBank\Database\Factories\ConsumableTransactionFactory;
 use Modules\BloodBank\Enums\ConsumableTransactionType;
+use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_consumable_transactions')]
 #[Fillable(['consumable_id', 'batch_id', 'type', 'quantity', 'balance_after', 'reason', 'performed_by', 'occurred_at'])]

@@ -2,7 +2,6 @@
 
 namespace Modules\Shared\Doctor\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -10,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Doctor\Database\Factories\DoctorFactory;
 
 #[Table('sh_doctors')]

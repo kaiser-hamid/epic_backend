@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\User;
+use Modules\Shared\Auth\Models\User;
 
 return [
 
@@ -17,7 +17,6 @@ return [
 
     'defaults' => [
         'guard' => env('AUTH_GUARD', 'web'),
-        'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
     /*
@@ -92,14 +91,7 @@ return [
     |
     */
 
-    'passwords' => [
-        'users' => [
-            'provider' => 'users',
-            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
-            'expire' => 60,
-            'throttle' => 60,
-        ],
-    ],
+    'passwords' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -111,6 +103,21 @@ return [
     | confirmation screen. By default, the timeout lasts for three hours.
     |
     */
+
+    /*
+    |--------------------------------------------------------------------------
+    | Account Lockout
+    |--------------------------------------------------------------------------
+    |
+    | After this many consecutive failed logins the account is locked for the
+    | given number of minutes, on top of the per-IP login rate limiter.
+    |
+    */
+
+    'lockout' => [
+        'max_attempts' => (int) env('AUTH_LOCKOUT_MAX_ATTEMPTS', 5),
+        'minutes' => (int) env('AUTH_LOCKOUT_MINUTES', 15),
+    ],
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 

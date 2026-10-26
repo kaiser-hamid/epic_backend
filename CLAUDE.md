@@ -7,7 +7,7 @@ Modular-monolith ERP for a diagnostic center, built to gradually replace a subsc
 - Business code lives in `modules/{Name}/` (PSR-4 `Modules\`), not `app/`. `app/` is bootstrap only.
 - Modules: `Shared` (kernel: Auth, RBAC, Audit, Patient, Doctor, TestCatalog, Billing, Printing, Numbering, ExternalReference, Notification, Support) and `BloodBank` (in progress). Others are planned.
 - Capabilities every module needs (e.g. print logs) belong in `Shared` behind a contract, not copied per module.
-- Polymorphic columns store morph aliases (`bb.sample`, `bb.unit`), never class names. Each module registers its aliases with `Relation::morphMap()` in its service provider (non-enforcing, so packages like spatie/permission keep working).
+- Polymorphic columns store morph aliases (`bb.sample`, `bb.unit`), never class names. Each module registers its aliases with `Relation::morphMap()` in its service provider (non-enforcing).
 - Module layout: `Actions`, `Contracts`, `Data`, `Database/{Factories,Migrations,Seeders}`, `Enums`, `Events`, `Exceptions`, `Http/{Controllers,Middleware,Resources}`, `Jobs`, `Listeners`, `Models`, `Policies`, `Providers`, `Queries`, `Resources/views`, `Routes/api.php`, `Services`, `Tests/{Feature,Unit}`.
 - Module providers are registered in `bootstrap/providers.php`.
 
@@ -55,7 +55,9 @@ Route → Controller → Data object (laravel-data validates) → permission che
 
 - Every create/update/delete is audit-logged (actor, action, entity, old/new values, IP, user agent). Also log logins, failed logins, report print/reprint, exports, and safety overrides (reason mandatory). The audit log is append-only.
 - Prints and reprints are recorded through the Shared `Modules\Shared\Printing\Contracts\PrintLogger` into `sh_print_logs`; it decides `is_reprint` and rejects a reprint without a reason (`REPRINT_REASON_REQUIRED`). Each module owns its printable document types as a backed enum with module-prefixed values (`bb.sample_label`) and decides who may reprint (permission + Policy).
-- Permissions via `spatie/laravel-permission`, granular per action (e.g. `bb.request.create`, `bb.unit.issue`). Record-level rules live in Policies.
+- Access is branch first, then permission. Permissions are granular per action (e.g. `bb.request.create`) and granted per user per branch (`sh_user_branch_permissions`); the session holds the branch chosen at login (`Modules\Shared\Branch\Contracts\CurrentBranch`). Check with `can:` / Gate (routed through `Modules\Shared\Rbac\Contracts\AccessChecker`); records with a `branch_id` must also pass `AccessChecker::allowsOnRecord()` in their Policy. Roles are UI templates only and never grant access. Super admin is IT/Developer only, set via `php artisan auth:super-admin`, never through the API.
+- Each module declares permissions as a backed enum implementing `PermissionDefinition`, registers it with `PermissionRegistry` in its provider, and `php artisan permissions:sync` mirrors them into `sh_permissions`.
+- Branch-owned business tables carry `branch_id`, stamped from `CurrentBranch` on create.
 
 ## Testing
 
@@ -173,6 +175,16 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 - Laravel can be deployed using [Laravel Cloud](https://cloud.laravel.com/), which is the fastest way to deploy and scale production Laravel applications.
 - Activate the `deploying-to-cloud` skill whenever deploying to Laravel Cloud, configuring Cloud environments or resources, using the Cloud CLI, or troubleshooting Cloud deployments.
+
+=== tests rules ===
+
+# Test Enforcement
+
+- Add or update tests for behavior and logic changes when a test provides meaningful regression coverage.
+- Pure copy, styling, and layout-only changes do not require new or updated tests.
+- When test coverage applies, run the affected tests and ensure they pass.
+- Test the changed behavior and its important failure modes, but do not add tests beyond them.
+- Read the `testing-best-practices` skill before writing tests.
 
 === laravel/core rules ===
 

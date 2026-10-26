@@ -2,9 +2,9 @@
 
 namespace Modules\Shared\Printing\Contracts;
 
-use App\Models\User;
 use BackedEnum;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Printing\Exceptions\ReprintReasonRequired;
 use Modules\Shared\Printing\Models\PrintLog;
 

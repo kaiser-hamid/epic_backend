@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Modules\Shared\Auth\Models\User;
+use Modules\Shared\Branch\Models\Branch;
+use Modules\Shared\Rbac\Actions\SyncPermissionCatalog;
 
 class DatabaseSeeder extends Seeder
 {
@@ -14,11 +16,16 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
-    public function run(): void
+    public function run(SyncPermissionCatalog $syncPermissionCatalog): void
     {
-        // User::factory(10)->create();
+        $syncPermissionCatalog->handle();
 
-        User::factory()->create([
+        Branch::factory()->create([
+            'code' => 'MAIN',
+            'name' => 'Main Branch',
+        ]);
+
+        User::factory()->superAdmin()->mustChangePassword()->create([
             'employee_id' => 'EMP-0001',
             'name' => 'Test User',
             'username' => 'khtusher',

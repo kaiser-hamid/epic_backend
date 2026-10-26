@@ -2,9 +2,9 @@
 
 namespace Modules\BloodBank\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\BloodBank\Models\Donor;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Patient\Enums\BloodGroup;
 use Modules\Shared\Patient\Enums\Gender;
 

@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -14,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\BloodBank\Database\Factories\PatientCaseFactory;
 use Modules\BloodBank\Enums\CareType;
 use Modules\BloodBank\Enums\CaseStatus;
+use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_cases')]
 #[Fillable(['case_no', 'patient_master_id', 'billing_id', 'care_type', 'transfusion_reason', 'reference_note', 'status', 'supplied_at', 'created_by'])]

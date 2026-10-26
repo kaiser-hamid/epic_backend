@@ -2,8 +2,8 @@
 
 namespace Modules\Shared\Patient\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Patient\Enums\BloodGroup;
 use Modules\Shared\Patient\Enums\Gender;
 use Modules\Shared\Patient\Enums\MaritalStatus;

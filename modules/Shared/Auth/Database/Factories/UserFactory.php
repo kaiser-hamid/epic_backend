@@ -1,8 +1,8 @@
 <?php
 
-namespace Database\Factories;
+namespace Modules\Shared\Auth\Database\Factories;
 
-use App\Models\User;
+use Modules\Shared\Auth\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -32,6 +32,8 @@ class UserFactory extends Factory
             'phone' => fake()->numerify('01#########'),
             'password' => static::$password ??= Hash::make('password'),
             'is_active' => true,
+            'is_super_admin' => false,
+            'must_change_password' => false,
             'remember_token' => Str::random(10),
         ];
     }
@@ -43,6 +45,26 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_active' => false,
+        ]);
+    }
+
+    /**
+     * An IT/Developer account that bypasses branch and permission checks.
+     */
+    public function superAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_super_admin' => true,
+        ]);
+    }
+
+    /**
+     * The account must change its password before doing anything else.
+     */
+    public function mustChangePassword(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'must_change_password' => true,
         ]);
     }
 }

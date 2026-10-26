@@ -2,8 +2,8 @@
 
 namespace Modules\Shared\Doctor\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Doctor\Models\Doctor;
 
 /**

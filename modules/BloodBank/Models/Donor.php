@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -12,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\BloodBank\Database\Factories\DonorFactory;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Patient\Enums\BloodGroup;
 use Modules\Shared\Patient\Enums\Gender;
 

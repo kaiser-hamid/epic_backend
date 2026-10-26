@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -13,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\BloodBank\Database\Factories\CaseDonorFactory;
 use Modules\BloodBank\Enums\CaseDonorStatus;
+use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_case_donors')]
 #[Fillable(['case_id', 'donor_id', 'billing_id', 'sequence_no', 'status', 'deferral_reason', 'assessed_by', 'assessed_at'])]

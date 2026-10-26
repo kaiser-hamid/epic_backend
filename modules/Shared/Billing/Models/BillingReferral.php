@@ -2,13 +2,13 @@
 
 namespace Modules\Shared\Billing\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Database\Factories\BillingReferralFactory;
 use Modules\Shared\Doctor\Models\Doctor;
 

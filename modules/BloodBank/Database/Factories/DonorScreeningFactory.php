@@ -2,10 +2,10 @@
 
 namespace Modules\BloodBank\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\DonorScreening;
+use Modules\Shared\Auth\Models\User;
 
 /**
  * @extends Factory<DonorScreening>

@@ -2,11 +2,11 @@
 
 namespace Modules\BloodBank\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\BloodBank\Enums\CollectionStatus;
 use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\Collection;
+use Modules\Shared\Auth\Models\User;
 
 /**
  * @extends Factory<Collection>

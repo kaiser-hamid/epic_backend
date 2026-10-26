@@ -2,11 +2,11 @@
 
 namespace Modules\BloodBank\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\BloodBank\Enums\CareType;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Models\PatientCase;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Patient\Database\Factories\PatientMasterFactory;
 
 /**

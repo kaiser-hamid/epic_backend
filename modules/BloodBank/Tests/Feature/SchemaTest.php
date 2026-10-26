@@ -1,9 +1,9 @@
 <?php
 
-use App\Models\User;
 use Modules\BloodBank\Enums\PrintDocumentType;
 use Modules\BloodBank\Models\Sample;
 use Modules\BloodBank\Models\TestResult;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Printing\Contracts\PrintLogger;
 
 it('keeps previous test result versions and exposes only the current one', function () {

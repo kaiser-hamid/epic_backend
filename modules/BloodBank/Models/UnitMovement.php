@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -11,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\BloodBank\Database\Factories\UnitMovementFactory;
 use Modules\BloodBank\Enums\UnitStatus;
+use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_unit_movements')]
 #[Fillable(['unit_id', 'from_status', 'to_status', 'from_location_id', 'to_location_id', 'case_id', 'reason', 'performed_by', 'occurred_at'])]

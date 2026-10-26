@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -12,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\BloodBank\Database\Factories\CollectionFactory;
 use Modules\BloodBank\Enums\CollectionStatus;
+use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_collections')]
 #[Fillable(['bag_no', 'case_donor_id', 'volume_ml', 'collected_at', 'collected_by', 'approved_by', 'status', 'notes'])]

@@ -2,12 +2,12 @@
 
 namespace Modules\BloodBank\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\BloodBank\Enums\TestResultStatus;
 use Modules\BloodBank\Models\Sample;
 use Modules\BloodBank\Models\TestDefinition;
 use Modules\BloodBank\Models\TestResult;
+use Modules\Shared\Auth\Models\User;
 
 /**
  * @extends Factory<TestResult>

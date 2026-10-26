@@ -2,7 +2,6 @@
 
 namespace Modules\Shared\Billing\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -12,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Database\Factories\BillingFactory;
 use Modules\Shared\Billing\Enums\BillingStatus;
 use Modules\Shared\Patient\Models\PatientMaster;

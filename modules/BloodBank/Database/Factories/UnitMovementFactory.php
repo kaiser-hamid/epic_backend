@@ -2,11 +2,11 @@
 
 namespace Modules\BloodBank\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Models\Unit;
 use Modules\BloodBank\Models\UnitMovement;
+use Modules\Shared\Auth\Models\User;
 
 /**
  * @extends Factory<UnitMovement>

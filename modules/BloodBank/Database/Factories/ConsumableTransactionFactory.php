@@ -2,11 +2,11 @@
 
 namespace Modules\BloodBank\Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\BloodBank\Enums\ConsumableTransactionType;
 use Modules\BloodBank\Models\Consumable;
 use Modules\BloodBank\Models\ConsumableTransaction;
+use Modules\Shared\Auth\Models\User;
 
 /**
  * @extends Factory<ConsumableTransaction>

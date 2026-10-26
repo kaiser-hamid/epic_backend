@@ -2,7 +2,6 @@
 
 namespace Modules\BloodBank\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -13,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\BloodBank\Database\Factories\TestResultFactory;
 use Modules\BloodBank\Enums\TestResultStatus;
+use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_test_results')]
 #[Fillable(['sample_id', 'test_definition_id', 'version', 'is_current', 'result_value', 'observation', 'tested_by', 'tested_at', 'status', 'reviewed_by', 'reviewed_at', 'amendment_reason'])]
