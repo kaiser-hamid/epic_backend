@@ -7,7 +7,9 @@ use Modules\Shared\Auth\Http\Controllers\PasswordController;
 use Modules\Shared\Auth\Http\Controllers\SessionController;
 use Modules\Shared\Auth\Http\Controllers\UserAccountController;
 use Modules\Shared\Auth\Http\Controllers\UserController;
+use Modules\Shared\Billing\Http\Controllers\InvoiceController;
 use Modules\Shared\Branch\Http\Controllers\BranchController;
+use Modules\Shared\Patient\Http\Controllers\PatientController;
 use Modules\Shared\Rbac\Http\Controllers\PermissionController;
 use Modules\Shared\Rbac\Http\Controllers\RoleController;
 use Modules\Shared\Rbac\Http\Controllers\UserBranchPermissionController;
@@ -63,4 +65,16 @@ Route::prefix('access')->name('access.')->middleware(['erp.auth', 'erp.password-
         Route::post('branches', [BranchController::class, 'store'])->name('branches.store');
         Route::put('branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
     });
+});
+
+Route::prefix('patients')->name('patients.')->middleware(['erp.auth', 'erp.password-changed'])->group(function (): void {
+    Route::get('/', [PatientController::class, 'index'])->middleware('can:sh.patient.view')->name('index');
+    Route::post('/', [PatientController::class, 'store'])->middleware('can:sh.patient.create')->name('store');
+    Route::get('{patient}', [PatientController::class, 'show'])->middleware('can:sh.patient.view')->name('show');
+});
+
+Route::prefix('billing')->name('billing.')->middleware(['erp.auth', 'erp.password-changed'])->group(function (): void {
+    Route::get('invoices', [InvoiceController::class, 'index'])->middleware('can:sh.billing.view')->name('invoices.index');
+    Route::post('invoices', [InvoiceController::class, 'store'])->middleware('can:sh.billing.create')->name('invoices.store');
+    Route::get('invoices/{billing}', [InvoiceController::class, 'show'])->middleware('can:view,billing')->name('invoices.show');
 });

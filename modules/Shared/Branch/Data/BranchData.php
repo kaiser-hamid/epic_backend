@@ -4,6 +4,7 @@ namespace Modules\Shared\Branch\Data;
 
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Attributes\Validation\Max;
+use Spatie\LaravelData\Attributes\Validation\Regex;
 use Spatie\LaravelData\Attributes\Validation\Unique;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
@@ -13,7 +14,7 @@ use Spatie\LaravelData\Support\Validation\References\RouteParameterReference;
 final class BranchData extends Data
 {
     public function __construct(
-        #[Max(20), Unique('sh_branches', 'code', ignore: new RouteParameterReference('branch', 'id', nullable: true))]
+        #[Regex('/^[A-Z]{2}$/'), Unique('sh_branches', 'code', ignore: new RouteParameterReference('branch', 'id', nullable: true))]
         public string $code,
         #[Max(255)]
         public string $name,

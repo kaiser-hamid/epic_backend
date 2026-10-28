@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use LogicException;
-use Modules\Shared\Audit\Enums\AuditAction;
 use Modules\Shared\Auth\Models\User;
 
 /**
  * Append-only audit trail. `auditable_type` holds a morph alias. Rows are never updated or deleted.
+ * `action` is a plain string because each module records its own module-prefixed actions (`bb.case.registered`).
  */
 #[Table('sh_audit_logs')]
 #[Fillable(['actor_id', 'branch_id', 'action', 'auditable_type', 'auditable_id', 'old_values', 'new_values', 'ip_address', 'user_agent'])]
@@ -32,7 +32,6 @@ final class AuditLog extends Model
     protected function casts(): array
     {
         return [
-            'action' => AuditAction::class,
             'old_values' => 'array',
             'new_values' => 'array',
         ];

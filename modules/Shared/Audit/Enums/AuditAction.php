@@ -25,4 +25,6 @@ enum AuditAction: string
     case RoleDeleted = 'role.deleted';
     case BranchCreated = 'branch.created';
     case BranchUpdated = 'branch.updated';
+    case PatientRegistered = 'patient.registered';
+    case InvoiceCreated = 'billing.invoice_created';
 }

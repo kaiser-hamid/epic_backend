@@ -18,7 +18,7 @@ final class BranchFactory extends Factory
     public function definition(): array
     {
         return [
-            'code' => fake()->unique()->bothify('BR-###'),
+            'code' => strtoupper(fake()->unique()->lexify('??')),
             'name' => fake()->city().' Branch',
             'address' => fake()->address(),
             'phone' => fake()->numerify('01#########'),

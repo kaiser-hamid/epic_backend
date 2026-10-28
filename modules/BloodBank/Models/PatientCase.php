@@ -5,6 +5,7 @@ namespace Modules\BloodBank\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,11 +14,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\BloodBank\Database\Factories\PatientCaseFactory;
 use Modules\BloodBank\Enums\CareType;
 use Modules\BloodBank\Enums\CaseStatus;
+use Modules\BloodBank\Policies\PatientCasePolicy;
 use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_cases')]
-#[Fillable(['case_no', 'patient_master_id', 'billing_id', 'care_type', 'transfusion_reason', 'reference_note', 'status', 'supplied_at', 'created_by'])]
+#[Fillable(['case_no', 'patient_master_id', 'billing_id', 'branch_id', 'care_type', 'transfusion_reason', 'reference_note', 'status', 'supplied_at', 'created_by'])]
 #[UseFactory(PatientCaseFactory::class)]
+#[UsePolicy(PatientCasePolicy::class)]
 final class PatientCase extends Model
 {
     /** @use HasFactory<PatientCaseFactory> */

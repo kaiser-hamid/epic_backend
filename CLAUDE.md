@@ -40,6 +40,7 @@ Route → Controller → Data object (laravel-data validates) → permission che
 
 - Path: `/api/{module}/{resource}` (e.g. `/api/blood-bank/requests`); JSON keys `snake_case`; dates ISO 8601.
 - Success: `{"data": ...}`; collections add `meta`.
+- Pagination: paginated lists return only `meta: {page_index, page_size, page_count, row_count}` (shadcn/ui data table / TanStack style, `page_index` zero-based) and no `links`. This is set once in `SharedServiceProvider::bootPagination()`; do not override it per resource. Requests use Laravel's one-based `page` plus `per_page` (capped at 100). The frontend shows next/prev only, with `row_count` as the total.
 - Errors are rendered centrally in `bootstrap/app.php` as `{"message", "code"}`; validation errors use `code: VALIDATION_FAILED` plus `errors`. Domain exceptions extend `Modules\Shared\Support\Exceptions\DomainException` and define `errorCode()` and `status()`. The frontend reacts to `code`, not `message`.
 
 ## Database

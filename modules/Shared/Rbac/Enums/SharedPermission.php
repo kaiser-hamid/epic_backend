@@ -16,6 +16,10 @@ enum SharedPermission: string implements PermissionDefinition
     case UserAssignPermissions = 'sh.user.assign_permissions';
     case RoleView = 'sh.role.view';
     case RoleManage = 'sh.role.manage';
+    case PatientView = 'sh.patient.view';
+    case PatientCreate = 'sh.patient.create';
+    case BillingView = 'sh.billing.view';
+    case BillingCreate = 'sh.billing.create';
 
     public function module(): string
     {
@@ -26,6 +30,8 @@ enum SharedPermission: string implements PermissionDefinition
     {
         return match ($this) {
             self::RoleView, self::RoleManage => 'Roles',
+            self::PatientView, self::PatientCreate => 'Patients',
+            self::BillingView, self::BillingCreate => 'Billing',
             default => 'Users',
         };
     }
@@ -43,6 +49,10 @@ enum SharedPermission: string implements PermissionDefinition
             self::UserAssignPermissions => 'Assign branch permissions to users',
             self::RoleView => 'View roles and the permission catalog',
             self::RoleManage => 'Create, edit and delete roles',
+            self::PatientView => 'Search and view patients',
+            self::PatientCreate => 'Register patients',
+            self::BillingView => 'View the branch\'s invoices',
+            self::BillingCreate => 'Create invoices, registering a new patient on the bill if needed',
         };
     }
 }

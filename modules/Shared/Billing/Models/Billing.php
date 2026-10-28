@@ -5,6 +5,7 @@ namespace Modules\Shared\Billing\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,11 +15,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Database\Factories\BillingFactory;
 use Modules\Shared\Billing\Enums\BillingStatus;
+use Modules\Shared\Billing\Policies\BillingPolicy;
+use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Patient\Models\PatientMaster;
 
 #[Table('sh_billing')]
-#[Fillable(['invoice_no', 'patient_master_id', 'amount', 'status', 'billed_at', 'created_by'])]
+#[Fillable(['invoice_no', 'patient_master_id', 'branch_id', 'amount', 'status', 'billed_at', 'created_by'])]
 #[UseFactory(BillingFactory::class)]
+#[UsePolicy(BillingPolicy::class)]
 final class Billing extends Model
 {
     /** @use HasFactory<BillingFactory> */
@@ -38,6 +42,11 @@ final class Billing extends Model
     public function patient(): BelongsTo
     {
         return $this->belongsTo(PatientMaster::class, 'patient_master_id');
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'branch_id');
     }
 
     public function creator(): BelongsTo

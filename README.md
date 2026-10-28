@@ -273,10 +273,11 @@ Collection (paginated):
 ```json
 {
   "data": [ ... ],
-  "links": { "first": "...", "last": "...", "prev": null, "next": "..." },
-  "meta": { "current_page": 1, "per_page": 20, "total": 134 }
+  "meta": { "page_index": 0, "page_size": 20, "page_count": 7, "row_count": 134 }
 }
 ```
+
+`meta` is the server-side pagination state of the shadcn/ui data table (TanStack Table): `page_index` is zero-based. Requests page with Laravel's one-based `page` and `per_page` (send `page_index + 1`).
 
 ### Error response
 

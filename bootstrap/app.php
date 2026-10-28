@@ -8,6 +8,7 @@ use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Modules\Shared\Support\Exceptions\DomainException;
+use Spatie\QueryBuilder\Exceptions\InvalidQuery;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -46,6 +47,8 @@ return Application::configure(basePath: dirname(__DIR__))
             $exception->status,
             ['errors' => $exception->errors()],
         ));
+
+        $exceptions->render(fn (InvalidQuery $exception) => $error($exception->getMessage(), 'INVALID_QUERY', $exception->getStatusCode()));
 
         $exceptions->render(fn (AuthenticationException $exception) => $error('Unauthenticated.', 'UNAUTHENTICATED', 401));
 

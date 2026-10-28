@@ -41,14 +41,16 @@ Shared tables (`sh_`) are owned by Shared. Blood Bank only stores their IDs (`pa
 | `bb_storage_locations` | Fridges, freezers, agitators (`type`), with temperature range. |
 | `bb_consumables` | Stock items (bags, reagents) with `minimum_stock`. |
 
+Steps 1, 2 and 4.1–4.2 are one form and one request: `POST /api/blood-bank/cases` (`RegisterCase`). Blood Bank is a branch (code `NB`). The action calls Shared's `InvoiceIssuer` contract for step 1, then writes steps 2 and 4 in the same transaction; it reads patient and invoice details back through `PatientDirectory` / `InvoiceDirectory`.
+
 ### 1. Patient registration and billing (Shared)
 
-1. Find or create the patient → `sh_patient_master` (`patient_no`, name, age, gender, blood group, phone…).
-2. Counter bills the blood bank service → `sh_billing` (`invoice_no`, `amount` total in paisa, `status`), lines in `sh_billing_items` (`test_item_id`, `quantity`, `rate` snapshot, `amount`), referral in `sh_billing_referrals` (doctor, second doctor, or self-referral). The referring doctor here is the register's **"Name of consultant"**; Blood Bank does not store it again.
+1. Find or create the patient → `sh_patient_master` (`patient_no` = `P{yyMMdd}{0001}`, global, daily reset; name, age, gender, blood group, phone…).
+2. Counter bills the blood bank service → `sh_billing` (`invoice_no` = `{branch code}{yyMMdd}{0001}`, e.g. `NB2610280001`, per branch, daily reset; `branch_id` of the issuing branch, `amount` total in paisa, `status`), lines in `sh_billing_items` (`test_item_id`, `quantity`, `rate` snapshot, `amount`), referral in `sh_billing_referrals` (doctor, second doctor, or self-referral). The referring doctor here is the register's **"Name of consultant"**; Blood Bank does not store it again.
 
 ### 2. Open the case (patient register)
 
-1. `bb_cases`: `case_no`, `patient_master_id`, `billing_id`, `care_type` (**"Care of"**: `daycare` = used in our daycare unit, `out` = takeaway), `transfusion_reason` (**"Cause of transfusion"**, nullable), `reference_note` (any other note), `status = open`, `created_by`.
+1. `bb_cases`: `case_no` (`BC{yyMM}{000001}`, global, monthly reset), `patient_master_id`, `billing_id`, `branch_id` (session branch; lists and the case Policy are scoped to it), `care_type` (**"Care of"**: `daycare` = used in our daycare unit, `out` = takeaway), `transfusion_reason` (**"Cause of transfusion"**, nullable), `reference_note` (any other note), `status = open`, `created_by`.
 2. Requested components (**"Component"** column) → `bb_case_components`, one row per component type: `case_id`, `component_type_id`, `quantity` (e.g. PCV × 2 and FP × 1 are two rows). Unique per (case, component type).
 
 Patient details are **not copied** here; read them from `sh_patient_master`.
@@ -67,7 +69,7 @@ The same patient sample is used for the crossmatch against each unit (step 8).
 
 Skip steps 4–7 when the blood is supplied directly from storage; go to step 8 with a stock unit.
 
-1. Find or create the donor (a person, reused across cases) → `bb_donors`: `donor_no`, name, age/DOB, gender, `blood_group`, phone, `national_id`, `is_regular_volunteer` (the form's "Would you like to be a regular voluntary donor?"; yes / no / not asked = null, updated each time they're asked).
+1. Find or create the donor (a person, reused across cases) → `bb_donors`: `donor_no` (`D{yyMM}{000001}`, global, monthly reset; find returning donors with `GET /api/blood-bank/donors`), name, age/DOB, gender, `blood_group`, phone, `national_id`, `is_regular_volunteer` (the form's "Would you like to be a regular voluntary donor?"; yes / no / not asked = null, updated each time they're asked).
 2. Attach them to this case → `bb_case_donors`: `case_id`, `donor_id`, `sequence_no` (1, 2, 3… per case), `status = registered`.
 3. Replacement donor (first one deferred) → **new** `bb_case_donors` row with the next `sequence_no`. The old row keeps its `deferred` status. If the replacement is billed separately, its new bill goes in `bb_case_donors.billing_id`.
 

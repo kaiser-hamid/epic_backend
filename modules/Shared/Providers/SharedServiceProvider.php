@@ -5,6 +5,7 @@ namespace Modules\Shared\Providers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\ResourceCollection;
 use Illuminate\Routing\Router;
 use Illuminate\Session\SessionManager;
 use Illuminate\Support\Facades\Gate;
@@ -22,9 +23,19 @@ use Modules\Shared\Auth\Http\Middleware\EnsureSuperAdmin;
 use Modules\Shared\Auth\Http\Middleware\EnsureUserIsActive;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Auth\Services\BranchAwareDatabaseSessionHandler;
+use Modules\Shared\Billing\Contracts\InvoiceDirectory;
+use Modules\Shared\Billing\Contracts\InvoiceIssuer;
+use Modules\Shared\Billing\Models\Billing;
+use Modules\Shared\Billing\Services\ActionInvoiceIssuer;
+use Modules\Shared\Billing\Services\EloquentInvoiceDirectory;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
 use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Branch\Services\SessionCurrentBranch;
+use Modules\Shared\Numbering\Contracts\NumberGenerator;
+use Modules\Shared\Numbering\Services\DatabaseNumberGenerator;
+use Modules\Shared\Patient\Contracts\PatientDirectory;
+use Modules\Shared\Patient\Models\PatientMaster;
+use Modules\Shared\Patient\Services\EloquentPatientDirectory;
 use Modules\Shared\Printing\Contracts\PrintLogger;
 use Modules\Shared\Printing\Services\EloquentPrintLogger;
 use Modules\Shared\Rbac\Console\SyncPermissionsCommand;
@@ -44,6 +55,10 @@ final class SharedServiceProvider extends ServiceProvider
         AuditLogger::class => EloquentAuditLogger::class,
         CurrentBranch::class => SessionCurrentBranch::class,
         AccessChecker::class => BranchAccessChecker::class,
+        NumberGenerator::class => DatabaseNumberGenerator::class,
+        InvoiceIssuer::class => ActionInvoiceIssuer::class,
+        InvoiceDirectory::class => EloquentInvoiceDirectory::class,
+        PatientDirectory::class => EloquentPatientDirectory::class,
     ];
 
     /**
@@ -65,22 +80,45 @@ final class SharedServiceProvider extends ServiceProvider
             __DIR__.'/../Auth/Database/Migrations',
             __DIR__.'/../Rbac/Database/Migrations',
             __DIR__.'/../Audit/Database/Migrations',
+            __DIR__.'/../Numbering/Database/Migrations',
         ]);
 
         Relation::morphMap([
             'sh.user' => User::class,
             'sh.branch' => Branch::class,
             'sh.role' => Role::class,
+            'sh.patient' => PatientMaster::class,
+            'sh.billing' => Billing::class,
         ]);
 
         $permissions->register(SharedPermission::class);
 
         $this->bootAuthorization();
         $this->bootAuthentication($router);
+        $this->bootPagination();
 
         if ($this->app->runningInConsole()) {
             $this->commands([SyncPermissionsCommand::class, SuperAdminCommand::class]);
         }
+    }
+
+    /**
+     * Paginated collections answer with the server-side pagination state of the shadcn/ui data table
+     * (TanStack Table): a zero-based `page_index`, `page_size`, `page_count` and `row_count`. The request
+     * side stays Laravel's one-based `page` plus `per_page`.
+     */
+    private function bootPagination(): void
+    {
+        ResourceCollection::macro('paginationInformation', function (Request $request, array $paginated, array $default): array {
+            return [
+                'meta' => [
+                    'page_index' => $paginated['current_page'] - 1,
+                    'page_size' => $paginated['per_page'],
+                    'page_count' => $paginated['last_page'],
+                    'row_count' => $paginated['total'],
+                ],
+            ];
+        });
     }
 
     /**

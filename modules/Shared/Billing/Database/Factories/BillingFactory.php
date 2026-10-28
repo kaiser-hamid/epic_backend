@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Enums\BillingStatus;
 use Modules\Shared\Billing\Models\Billing;
+use Modules\Shared\Branch\Database\Factories\BranchFactory;
 use Modules\Shared\Patient\Database\Factories\PatientMasterFactory;
 
 /**
@@ -23,6 +24,7 @@ final class BillingFactory extends Factory
         return [
             'invoice_no' => fake()->unique()->numerify('INV-########'),
             'patient_master_id' => PatientMasterFactory::new(),
+            'branch_id' => BranchFactory::new(),
             'amount' => 0,
             'status' => BillingStatus::Active,
             'billed_at' => now(),
