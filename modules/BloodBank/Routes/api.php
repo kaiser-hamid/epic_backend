@@ -16,6 +16,7 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
 
     Route::get('donors', [DonorController::class, 'index'])->middleware('can:bb.donor.view')->name('donors.index');
     Route::get('donors/lookup', [DonorController::class, 'lookup'])->middleware('can:bb.donor.view')->name('donors.lookup');
+    Route::get('donors/{donor}', [DonorController::class, 'show'])->middleware('can:bb.donor.view')->name('donors.show');
 
     Route::get('component-types', [ComponentTypeController::class, 'index'])->name('component-types.index');
 });
