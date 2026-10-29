@@ -2,6 +2,7 @@
 
 namespace Modules\Shared\Patient\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -41,5 +42,22 @@ final class PatientMaster extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * The age as of today, from the date of birth, so it never goes stale. A row without a date of birth falls
+     * back to the age typed at registration.
+     *
+     * @return array{years: ?int, months: ?int, days: ?int}
+     */
+    public function currentAge(): array
+    {
+        if ($this->date_of_birth === null) {
+            return ['years' => $this->age_years, 'months' => $this->age_months, 'days' => $this->age_days];
+        }
+
+        $age = $this->date_of_birth->toImmutable()->startOfDay()->diff(CarbonImmutable::today());
+
+        return ['years' => $age->y, 'months' => $age->m, 'days' => $age->d];
     }
 }

@@ -16,15 +16,17 @@ final class PatientResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $age = $this->currentAge();
+
         return [
             'id' => $this->id,
             'patient_no' => $this->patient_no,
             'title' => $this->title?->value,
             'name' => $this->name,
             'address' => $this->address,
-            'age_years' => $this->age_years,
-            'age_months' => $this->age_months,
-            'age_days' => $this->age_days,
+            'age_years' => $age['years'],
+            'age_months' => $age['months'],
+            'age_days' => $age['days'],
             'date_of_birth' => $this->date_of_birth?->toDateString(),
             'gender' => $this->gender?->value,
             'marital_status' => $this->marital_status?->value,

@@ -7,6 +7,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\BloodBank\Models\Donor;
 
 /**
+ * `age` is as of today.
+ *
  * @mixin Donor
  */
 final class DonorResource extends JsonResource
@@ -20,7 +22,7 @@ final class DonorResource extends JsonResource
             'id' => $this->id,
             'donor_no' => $this->donor_no,
             'name' => $this->name,
-            'age' => $this->age,
+            'age' => $this->currentAge(),
             'date_of_birth' => $this->date_of_birth?->toDateString(),
             'gender' => $this->gender?->value,
             'blood_group' => $this->blood_group?->value,

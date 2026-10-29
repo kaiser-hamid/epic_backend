@@ -5,14 +5,17 @@ use Modules\Shared\Auth\Http\Controllers\AuthenticatedSessionController;
 use Modules\Shared\Auth\Http\Controllers\LoginBranchController;
 use Modules\Shared\Auth\Http\Controllers\PasswordController;
 use Modules\Shared\Auth\Http\Controllers\SessionController;
+use Modules\Shared\Auth\Http\Controllers\StaffController;
 use Modules\Shared\Auth\Http\Controllers\UserAccountController;
 use Modules\Shared\Auth\Http\Controllers\UserController;
 use Modules\Shared\Billing\Http\Controllers\InvoiceController;
 use Modules\Shared\Branch\Http\Controllers\BranchController;
+use Modules\Shared\Doctor\Http\Controllers\DoctorController;
 use Modules\Shared\Patient\Http\Controllers\PatientController;
 use Modules\Shared\Rbac\Http\Controllers\PermissionController;
 use Modules\Shared\Rbac\Http\Controllers\RoleController;
 use Modules\Shared\Rbac\Http\Controllers\UserBranchPermissionController;
+use Modules\Shared\TestCatalog\Http\Controllers\TestItemController;
 
 /*
 | `erp.auth` = signed in + active account + active branch session. `erp.password-changed` additionally
@@ -70,7 +73,18 @@ Route::prefix('access')->name('access.')->middleware(['erp.auth', 'erp.password-
 Route::prefix('patients')->name('patients.')->middleware(['erp.auth', 'erp.password-changed'])->group(function (): void {
     Route::get('/', [PatientController::class, 'index'])->middleware('can:sh.patient.view')->name('index');
     Route::post('/', [PatientController::class, 'store'])->middleware('can:sh.patient.create')->name('store');
+    Route::get('lookup', [PatientController::class, 'lookup'])->middleware('can:sh.patient.view')->name('lookup');
     Route::get('{patient}', [PatientController::class, 'show'])->middleware('can:sh.patient.view')->name('show');
+});
+
+/*
+| Pickers for the billing form (shared billing and Blood Bank case registration). Reference data with picker
+| fields only, so any signed-in staff member may search it without a dedicated permission.
+*/
+Route::middleware(['erp.auth', 'erp.password-changed'])->group(function (): void {
+    Route::get('doctors/lookup', [DoctorController::class, 'lookup'])->name('doctors.lookup');
+    Route::get('staff/lookup', [StaffController::class, 'lookup'])->name('staff.lookup');
+    Route::get('test-items/lookup', [TestItemController::class, 'lookup'])->name('test-items.lookup');
 });
 
 Route::prefix('billing')->name('billing.')->middleware(['erp.auth', 'erp.password-changed'])->group(function (): void {

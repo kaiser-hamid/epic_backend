@@ -2,6 +2,7 @@
 
 namespace Modules\BloodBank\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -44,5 +45,24 @@ final class Donor extends Model
     public function caseDonors(): HasMany
     {
         return $this->hasMany(CaseDonor::class, 'donor_id');
+    }
+
+    /**
+     * The age in whole years as of today, from the date of birth. A donor registered with only an age is aged
+     * forward from the registration date, so a returning donor's age never goes stale.
+     */
+    public function currentAge(): ?int
+    {
+        $today = CarbonImmutable::today();
+
+        if ($this->date_of_birth !== null) {
+            return (int) $this->date_of_birth->toImmutable()->startOfDay()->diffInYears($today);
+        }
+
+        if ($this->age === null || $this->created_at === null) {
+            return $this->age;
+        }
+
+        return $this->age + (int) $this->created_at->toImmutable()->startOfDay()->diffInYears($today);
     }
 }

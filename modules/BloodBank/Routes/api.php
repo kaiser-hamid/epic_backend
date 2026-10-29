@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\BloodBank\Http\Controllers\CaseController;
+use Modules\BloodBank\Http\Controllers\ComponentTypeController;
 use Modules\BloodBank\Http\Controllers\DonorController;
 
 /*
@@ -14,4 +15,7 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::get('cases/{case}', [CaseController::class, 'show'])->middleware('can:view,case')->name('cases.show');
 
     Route::get('donors', [DonorController::class, 'index'])->middleware('can:bb.donor.view')->name('donors.index');
+    Route::get('donors/lookup', [DonorController::class, 'lookup'])->middleware('can:bb.donor.view')->name('donors.lookup');
+
+    Route::get('component-types', [ComponentTypeController::class, 'index'])->name('component-types.index');
 });
