@@ -28,6 +28,40 @@ bb_consumable_*   ← separate stock ledger for bags, reagents, etc.
 
 Shared tables (`sh_`) are owned by Shared. Blood Bank only stores their IDs (`patient_master_id`, `billing_id`) and never writes to them.
 
+## Build status and menus
+
+All APIs are under `/api/blood-bank`.
+
+| Menu | Steps | Status | APIs |
+|---|---|---|---|
+| **Cases** (Register Case, Case List) | 1, 2, 4.1–4.2 | Done | `GET/POST cases`, `GET cases/{case}` |
+| **Donors** | 4.1 | Done | `GET donors`, `GET donors/lookup`, `GET donors/{donor}` |
+| **Sample Collection** (tabs: Collection, Pending, Collected) | 3.1–3.2, 5.2 | Done | see below |
+| **Test Results** (work list: ABO, Rh, serology; review, amend) | 3.3–3.5, 5.3 | Next | |
+| **Donor Screening** (physical exam, Accept / Defer, add replacement donor) | 4.3, 5.1, 5.4 | Next | |
+| **Settings → Test Definitions** | 0 | Next | |
+| **Blood Collection** (bag, post-donation vitals, bag label) | 6 | Later | |
+| **Component Preparation** (split whole blood, component labels) | 7 | Later | |
+| **Crossmatch** + Compatibility Report print | 8 | Later | |
+| **Blood Issue** (reserve / issue / return, supply time, close case) | 9 | Later | |
+| **Inventory / Stock** (units by location, move, quarantine, discard) | 9 | Later | |
+| **Expiry Dashboard** | 9 | Later | |
+| **Consumables** (items, receive / issue / adjust, ledger) | 10 | Later | |
+| **Settings → Component Types, Storage Locations** | 0 | Later | `GET component-types` (picker) exists |
+
+Sample Collection APIs (permissions `bb.sample.view` / `bb.sample.collect` / `bb.sample.print_label`, branch scoped):
+
+| API | Screen |
+|---|---|
+| `GET sample-collection?invoice_no=` | Collection tab: invoice scan → case, patient, invoice, one row per subject (patient, then donors) with its latest sample, `is_collectable`, `label_print_count`. The invoice no is used until the vendor system is replaced; the case no lookup is kept commented out (`SampleCollectionLookupData`, `ShowSampleCollection`). |
+| `GET cases/{case}/sample-collection` | Same screen, opened from the Pending tab or a case. |
+| `POST cases/{case}/samples` | "Collect": `subjects: [{subject_type, case_donor_id}]`, optional `collected_at`. All or nothing; returns the screen plus `collected_sample_ids` (201). |
+| `POST cases/{case}/sample-labels` | "Label" / "Label (All)": `sample_ids`, `reprint_reason` (required for a reprint). Returns label content per sample. |
+| `GET sample-collection/pending` | Pending tab: open cases still waiting for a sample from the patient or a donor who was not deferred. |
+| `GET samples` | Collected tab and barcode scan (`filter[sample_no]`, `filter[case_no]`, `filter[status]`, `filter[subject_type]`, `filter[collected_from/to]`). |
+
+Collection rules: a subject is collectable while the case is `open`, it has no sample (or only `rejected` ones), and the donor is not `deferred`. Error codes are `CASE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `DONOR_DEFERRED`, `SAMPLE_ALREADY_COLLECTED` (409), `SAMPLE_NOT_IN_CASE` and `REPRINT_REASON_REQUIRED`.
+
 ## Step by step
 
 ### 0. Setup (master data, once)
@@ -57,7 +91,7 @@ Patient details are **not copied** here; read them from `sh_patient_master`.
 
 ### 3. Patient sample (blood group)
 
-1. Draw the patient's sample → `bb_samples`: `sample_no` (printed on the label), `case_id`, `case_donor_id = null`, `subject_type = patient`, `collected_at/by`, `status = collected`.
+1. Draw the patient's sample → `bb_samples`: `sample_no` (printed on the label; `S{yyMMdd}{0001}`, global, daily reset, shared by patient and donor samples), `case_id`, `case_donor_id = null`, `subject_type = patient`, `collected_at/by`, `status = collected`.
 2. Print the sample label → `sh_print_logs` (`document_type = bb.sample_label`, `printable_type = bb.sample`).
 3. Blood group → `bb_test_results`, one row each for Blood Group (ABO) and Rhesus (D): `sample_id`, `test_definition_id`, `result_value`, `observation`, `tested_by/at`, `version = 1`, `is_current = true`, `status = entered`. Sample moves `in_testing` → `tested`.
 4. Review → same row: `status = reviewed`, `reviewed_by/at`.

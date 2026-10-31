@@ -3,9 +3,11 @@
 namespace Modules\BloodBank\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -69,5 +71,16 @@ final class PatientCase extends Model
     public function units(): HasMany
     {
         return $this->hasMany(Unit::class, 'case_id');
+    }
+
+    /**
+     * Cases billed by this invoice: the case bill or a replacement donor's bill.
+     */
+    #[Scope]
+    protected function billedBy(Builder $query, int $billingId): void
+    {
+        $query->where(fn (Builder $query) => $query
+            ->where('billing_id', $billingId)
+            ->orWhereHas('caseDonors', fn (Builder $query) => $query->where('billing_id', $billingId)));
     }
 }

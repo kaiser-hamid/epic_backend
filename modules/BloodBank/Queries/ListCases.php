@@ -81,9 +81,7 @@ final class ListCases
             return;
         }
 
-        $query->where(fn (Builder $query) => $query
-            ->where('billing_id', $billingId)
-            ->orWhereHas('caseDonors', fn (Builder $query) => $query->where('billing_id', $billingId)));
+        $query->billedBy($billingId);
     }
 
     /**

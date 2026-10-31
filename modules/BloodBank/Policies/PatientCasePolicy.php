@@ -18,4 +18,19 @@ final class PatientCasePolicy
     {
         return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CaseView, $case->branch_id);
     }
+
+    public function viewSamples(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::SampleView, $case->branch_id);
+    }
+
+    public function collectSamples(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::SampleCollect, $case->branch_id);
+    }
+
+    public function printSampleLabels(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::SampleLabelPrint, $case->branch_id);
+    }
 }
