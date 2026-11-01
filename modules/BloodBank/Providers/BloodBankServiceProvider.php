@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\BloodBank\Enums\BloodBankPermission;
+use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\Collection;
 use Modules\BloodBank\Models\Crossmatch;
 use Modules\BloodBank\Models\Donor;
@@ -23,6 +24,7 @@ final class BloodBankServiceProvider extends ServiceProvider
         Relation::morphMap([
             'bb.case' => PatientCase::class,
             'bb.donor' => Donor::class,
+            'bb.case_donor' => CaseDonor::class,
             'bb.sample' => Sample::class,
             'bb.collection' => Collection::class,
             'bb.unit' => Unit::class,

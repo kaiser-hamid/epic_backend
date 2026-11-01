@@ -8,7 +8,6 @@ use Modules\BloodBank\Enums\CaseDonorStatus;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SampleSubject;
-use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Sample;
 use Modules\Shared\Patient\Data\PatientSummary;
@@ -16,7 +15,7 @@ use Modules\Shared\Patient\Data\PatientSummary;
 /**
  * Who a case's samples are drawn from: the patient, then every case donor in sequence order, each with its
  * latest sample. A subject is collectable while the case is open, it has no sample or only rejected ones, and
- * (for a donor) the donor was not deferred.
+ * (for a donor) the physician accepted the donor at the physical exam (`fit`).
  */
 final class CaseSampleSubjects
 {
@@ -49,12 +48,15 @@ final class CaseSampleSubjects
             $sample,
             $case->status === CaseStatus::Open
                 && ($sample === null || $sample->status === SampleStatus::Rejected)
-                && ! $this->isDeferred($subject->caseDonor),
+                && $this->isReadyForSample($subject),
         );
     }
 
-    private function isDeferred(?CaseDonor $caseDonor): bool
+    /**
+     * The patient always is; a donor only once the physician accepted them at the physical exam (`fit`).
+     */
+    private function isReadyForSample(SubjectView $subject): bool
     {
-        return $caseDonor?->status === CaseDonorStatus::Deferred;
+        return $subject->type === SampleSubject::Patient || $subject->caseDonor?->status === CaseDonorStatus::Fit;
     }
 }

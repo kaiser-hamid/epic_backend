@@ -19,7 +19,7 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * The "Pending" tab: open cases of the session's branch still waiting for a sample from the patient or from a
- * donor who was not deferred (a rejected sample counts as not collected). Filter: `filter[care_type]`.
+ * donor the physician accepted (`fit`); a rejected sample counts as not collected. Filter: `filter[care_type]`.
  * Sorts: `created_at` (default oldest first), `case_no`. `per_page` up to 100.
  */
 final class ListPendingSampleCollections
@@ -43,7 +43,7 @@ final class ListPendingSampleCollections
             ->where(fn (Builder $query) => $query
                 ->whereDoesntHave('samples', fn (Builder $query) => $notRejected($query->where('subject_type', SampleSubject::Patient)))
                 ->orWhereHas('caseDonors', fn (Builder $query) => $query
-                    ->where('status', '!=', CaseDonorStatus::Deferred)
+                    ->where('status', CaseDonorStatus::Fit)
                     ->whereDoesntHave('samples', $notRejected)))
             ->with('components.componentType')
             ->withCount('caseDonors');

@@ -37,6 +37,7 @@ beforeEach(function () {
         'case_id' => $this->case->id,
         'donor_id' => Donor::factory()->create(['name' => 'Karim Mia']),
         'sequence_no' => 1,
+        'status' => CaseDonorStatus::Fit,
     ]);
 });
 
@@ -106,6 +107,11 @@ it('collects nothing when one ticked row cannot be collected', function (Closure
 
         return [['subject_type' => 'patient'], ['subject_type' => 'donor', 'case_donor_id' => $test->donor->id]];
     }, 'DONOR_DEFERRED', 422],
+    'donor not yet accepted at the physical exam' => [function ($test) {
+        $test->donor->update(['status' => CaseDonorStatus::Registered]);
+
+        return [['subject_type' => 'patient'], ['subject_type' => 'donor', 'case_donor_id' => $test->donor->id]];
+    }, 'DONOR_NOT_FIT', 422],
     'donor of another case' => [fn () => [
         ['subject_type' => 'patient'],
         ['subject_type' => 'donor', 'case_donor_id' => CaseDonor::factory()->create()->id],
@@ -160,6 +166,9 @@ it('lists open cases still waiting for a sample as pending', function () {
     $deferredOnly = PatientCase::factory()->create(['branch_id' => $this->branch->id]);
     Sample::factory()->create(['case_id' => $deferredOnly->id]);
     CaseDonor::factory()->create(['case_id' => $deferredOnly->id, 'status' => CaseDonorStatus::Deferred]);
+    $awaitingExam = PatientCase::factory()->create(['branch_id' => $this->branch->id]);
+    Sample::factory()->create(['case_id' => $awaitingExam->id]);
+    CaseDonor::factory()->create(['case_id' => $awaitingExam->id]);
     $untouched = PatientCase::factory()->create(['branch_id' => $this->branch->id]);
     PatientCase::factory()->create(['branch_id' => $this->branch->id, 'status' => CaseStatus::Cancelled]);
 

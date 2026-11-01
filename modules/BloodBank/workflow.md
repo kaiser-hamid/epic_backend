@@ -15,7 +15,7 @@ sh_patient_master ─┐
                                   ├─> bb_units.case_id (units reserved for / issued to this case)
                                   │
                                   └─> bb_case_donors <── bb_donors (person, reused across cases; optional: stock units need none)
-                                         │   status: registered → eligible (fit to donate) / deferred → collected
+                                         │   status: registered → fit (physical exam) → eligible (serology) → collected; deferred at either check
                                          ├─> bb_donor_screenings (weight, height, Hb, pre/post vitals)
                                          ├─> bb_samples (subject = donor) ──> bb_test_results (serology)
                                          └─> bb_collections (one bag, bag_no)
@@ -37,8 +37,9 @@ All APIs are under `/api/blood-bank`.
 | **Cases** (Register Case, Case List) | 1, 2, 4.1–4.2 | Done | `GET/POST cases`, `GET cases/{case}` |
 | **Donors** | 4.1 | Done | `GET donors`, `GET donors/lookup`, `GET donors/{donor}` |
 | **Sample Collection** (tabs: Collection, Pending, Collected) | 3.1–3.2, 5.2 | Done | see below |
-| **Test Results** (work list: ABO, Rh, serology; review, amend) | 3.3–3.5, 5.3 | Next | |
-| **Donor Screening** (physical exam, Accept / Defer, add replacement donor) | 4.3, 5.1, 5.4 | Next | |
+| **Donor Examination** (physician: pre-donation physical exam + Accept / Defer on one form) | 5.1 | Done | see step 5 |
+| **Test Results** (work list: ABO, Rh, serology; review, amend; donor serology Accept / Defer) | 3.3–3.5, 5.3–5.4 | Next | |
+| **Replacement donor** (add a donor to a case after a deferral) | 4.3 | Next | |
 | **Settings → Test Definitions** | 0 | Next | |
 | **Blood Collection** (bag, post-donation vitals, bag label) | 6 | Later | |
 | **Component Preparation** (split whole blood, component labels) | 7 | Later | |
@@ -60,7 +61,7 @@ Sample Collection APIs (permissions `bb.sample.view` / `bb.sample.collect` / `bb
 | `GET sample-collection/pending` | Pending tab: open cases still waiting for a sample from the patient or a donor who was not deferred. |
 | `GET samples` | Collected tab and barcode scan (`filter[sample_no]`, `filter[case_no]`, `filter[status]`, `filter[subject_type]`, `filter[collected_from/to]`). |
 
-Collection rules: a subject is collectable while the case is `open`, it has no sample (or only `rejected` ones), and the donor is not `deferred`. Error codes are `CASE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `DONOR_DEFERRED`, `SAMPLE_ALREADY_COLLECTED` (409), `SAMPLE_NOT_IN_CASE` and `REPRINT_REASON_REQUIRED`.
+Collection rules: a subject is collectable while the case is `open` and it has no sample (or only `rejected` ones); a donor also needs to be `fit` (accepted at the physical exam, step 5.1). Error codes are `CASE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `DONOR_DEFERRED`, `DONOR_NOT_FIT` (donor still `registered`), `SAMPLE_ALREADY_COLLECTED` (409), `SAMPLE_NOT_IN_CASE` and `REPRINT_REASON_REQUIRED`.
 
 ## Step by step
 
@@ -109,14 +110,27 @@ Skip steps 4–7 when the blood is supplied directly from storage; go to step 8 
 
 ### 5. Donor screening and eligibility
 
-This is the paper "Physical/Medical Examination" + "Serological Investigations" form.
+The paper "Physical/Medical Examination" + "Serological Investigations" form, done as two checks, each with its own Accept / Defer. Every decision is a physician's manual input, never automatic; the system only records it. A deferral at either check ends the donor for this case (a replacement donor is a new case donor, step 4.3).
 
-1. Physical examination → `bb_donor_screenings` (one row per `case_donor_id`): `weight_kg`, `height_cm` (UI may accept feet/inches, stored as cm), `hemoglobin_g_dl`, pre-donation `pre_pulse_bpm`, `pre_bp_systolic` / `pre_bp_diastolic` (140/90 → 140 and 90), `pre_temperature_f`, `examined_by/at`. Post-donation columns stay empty for now.
-2. Donor sample → `bb_samples` with `subject_type = donor`, `case_donor_id` set. Label printed (`sh_print_logs`).
-3. Screening → `bb_test_results`, one row per test (ABO, Rh, HBsAg, Anti HCV, Anti HIV, Syphilis, Malaria), same versioning rules as step 3. Signature of Technologist = `tested_by` / `reviewed_by`. The confirmed blood group is copied to `bb_donors.blood_group`. These results are what the Compatibility Test Report later prints under "Screening Tests".
-4. Accepted / Deferred (never automatic) → directly on `bb_case_donors`: `status` (`eligible` = "Accepted" / `deferred`), `deferral_reason` (= "Reason for deferral"), `assessed_by/at` (Signature of Physician). If the decision changes, the audit log keeps the old and new values.
+**Decisions are required and forward only.** Each form must be saved with a decision and offers only its own two outcomes: the physical exam `accepted` → `fit` / `deferred`; serology `accepted` → `eligible` / `deferred`. No form can set `registered` again or a status of another stage, so a donor never moves backward. A form can be corrected (including switching its own Accept / Defer) only until the next stage starts: the physical exam until the donor sample is drawn, serology until the bag is collected.
 
-`eligible` means **fit to donate**. Whether a bag suits the patient is the crossmatch (step 8). One case can have several case donors; each is marked on its own.
+1. **Physical examination (physician, one form)** → `bb_donor_screenings` (one row per `case_donor_id`): `weight_kg`, `height_cm` (optional; UI may accept feet/inches, stored as cm), `hemoglobin_g_dl`, pre-donation `pre_pulse_bpm`, `pre_bp_systolic` / `pre_bp_diastolic` (140/90 → 140 and 90), `pre_temperature_f`, `examined_by/at`. Post-donation columns stay empty until step 6. The same form records the required decision → `bb_case_donors`: `status` (`fit` = "Accepted" / `deferred`), `deferral_reason` (= "Reason for deferral", required when deferred), `assessed_by/at`. The audit log keeps old and new values of a correction.
+2. **Donor sample** (only for a `fit` donor; `DONOR_NOT_FIT` otherwise) → `bb_samples` with `subject_type = donor`, `case_donor_id` set. Label printed (`sh_print_logs`).
+3. **Serological investigation** → `bb_test_results`, one row per test (ABO, Rh, HBsAg, Anti HCV, Anti HIV, Syphilis, Malaria), same versioning rules as step 3. Signature of Technologist = `tested_by` / `reviewed_by`. The confirmed blood group is copied to `bb_donors.blood_group`. These results are what the Compatibility Test Report later prints under "Screening Tests".
+4. **Serology Accept / Defer** (required on the results form; only for a `fit` donor) → `bb_case_donors`: `status` (`eligible` / `deferred`), `deferral_reason`, `assessed_by/at` overwritten with this decision (the audit log keeps the physical-exam decision; the examining physician is also `bb_donor_screenings.examined_by`).
+
+`fit` means passed the physical exam; `eligible` means **cleared to donate** (physical + serology). Whether a bag suits the patient is the crossmatch (step 8). One case can have several case donors; each is marked on its own.
+
+Donor Examination APIs (permissions `bb.donor_exam.view` / `bb.donor_exam.record`, branch scoped):
+
+| API | Screen |
+|---|---|
+| `GET donor-examination?invoice_no=` | Invoice scan (case bill or a replacement donor's bill) → case, patient, invoice, one row per case donor with its `examination` (null until saved), `decision` (`accepted` = `fit` or later, `deferred`, null), `deferral_reason`, `assessed_by/at`, `can_examine`. |
+| `GET cases/{case}/donor-examination` | Same screen, opened from the Pending tab or a case. |
+| `PUT cases/{case}/donors/{caseDonor}/physical-examination` | Save the form: `weight_kg`, `height_cm?`, `hemoglobin_g_dl`, `pulse_bpm`, `bp_systolic`, `bp_diastolic`, `temperature_f`, `decision` (required: `accepted` / `deferred`), `deferral_reason` (required when deferred). Returns the screen. |
+| `GET donor-examination/pending` | Pending tab: open cases with a donor still `registered`. |
+
+Examination rules: the case is `open`, the donor belongs to it, and no donor sample has been drawn yet (a rejected sample does not count) and the donor is not yet `eligible` / `collected` (otherwise `EXAMINATION_LOCKED`, 409). A save replaces the form; `examined_by/at` are the user and server time of the latest save (no time is accepted from the client); `assessed_by/at` change only when the decision changes. Audit: `bb.donor.examined` (first save), `bb.donor.examination_amended` (old/new values), on `bb.case_donor`. Values must be plausible (weight 20–250 kg, height 50–250 cm, Hb 1–25 g/dL, pulse 20–250, systolic 50–300, diastolic 20–200 and below systolic, temperature 90–110 °F); clinical thresholds are the physician's call, not enforced. Error codes: `CASE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `EXAMINATION_LOCKED`.
 
 ### 6. Collection (the bag)
 
@@ -205,7 +219,7 @@ When done, `bb_cases.status = closed` (or `cancelled`).
 | Table | Statuses |
 |---|---|
 | `bb_cases` | open → closed / cancelled |
-| `bb_case_donors` | registered → eligible / deferred → collected |
+| `bb_case_donors` | registered → fit (physical exam) → eligible (serology) → collected; deferred at either check; never backward |
 | `bb_samples` | collected → in_testing → tested (or rejected) |
 | `bb_test_results`, `bb_crossmatches` | entered → reviewed (or rejected) |
 | `bb_collections` | collected / cancelled |
@@ -223,7 +237,7 @@ When done, `bb_cases.status = closed` (or `cancelled`).
 ## Decisions so far
 
 - `case_no` stays the case identifier; `invoice_no` is a search key only (a case can exist before billing, have several bills, or be rebilled).
-- Eligibility lives on `bb_case_donors` (no separate assessments table); `eligible` = fit to donate.
+- Eligibility lives on `bb_case_donors` (no separate assessments table), decided twice: physical exam (`fit` / `deferred`), then serology (`eligible` / `deferred`). Both are manual physician inputs.
 - The crossmatch is patient sample × **unit**, not × donor, so units from storage (no donor brought) are covered.
 - "Name of consultant" is the billing referral doctor; Blood Bank stores no doctor.
 - Print logs are Shared (`sh_print_logs`), not Blood Bank.

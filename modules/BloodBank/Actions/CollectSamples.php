@@ -16,6 +16,7 @@ use Modules\BloodBank\Enums\SampleSubject;
 use Modules\BloodBank\Exceptions\CaseDonorNotInCase;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
 use Modules\BloodBank\Exceptions\DonorDeferred;
+use Modules\BloodBank\Exceptions\DonorNotFit;
 use Modules\BloodBank\Exceptions\SampleAlreadyCollected;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Sample;
@@ -43,6 +44,7 @@ final class CollectSamples
      * @throws CaseNotOpen
      * @throws CaseDonorNotInCase
      * @throws DonorDeferred
+     * @throws DonorNotFit
      * @throws SampleAlreadyCollected
      * @throws ValidationException
      */
@@ -118,12 +120,19 @@ final class CollectSamples
 
     /**
      * @throws DonorDeferred
+     * @throws DonorNotFit
      * @throws SampleAlreadyCollected
      */
     private function ensureCollectable(CollectionSubject $subject): void
     {
-        if ($subject->subject->caseDonor?->status === CaseDonorStatus::Deferred) {
+        $donorStatus = $subject->subject->caseDonor?->status;
+
+        if ($donorStatus === CaseDonorStatus::Deferred) {
             throw new DonorDeferred;
+        }
+
+        if ($donorStatus === CaseDonorStatus::Registered) {
+            throw new DonorNotFit;
         }
 
         if (! $subject->isCollectable) {

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\BloodBank\Http\Controllers\CaseController;
 use Modules\BloodBank\Http\Controllers\ComponentTypeController;
 use Modules\BloodBank\Http\Controllers\DonorController;
+use Modules\BloodBank\Http\Controllers\DonorExaminationController;
 use Modules\BloodBank\Http\Controllers\SampleCollectionController;
 use Modules\BloodBank\Http\Controllers\SampleController;
 
@@ -22,6 +23,11 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::post('cases/{case}/samples', [SampleCollectionController::class, 'collect'])->middleware('can:collectSamples,case')->name('cases.samples.store');
     Route::post('cases/{case}/sample-labels', [SampleCollectionController::class, 'printLabels'])->middleware('can:printSampleLabels,case')->name('cases.sample-labels.store');
     Route::get('samples', [SampleController::class, 'index'])->middleware('can:bb.sample.view')->name('samples.index');
+
+    Route::get('donor-examination', [DonorExaminationController::class, 'lookup'])->middleware('can:bb.donor_exam.view')->name('donor-examination.lookup');
+    Route::get('donor-examination/pending', [DonorExaminationController::class, 'pending'])->middleware('can:bb.donor_exam.view')->name('donor-examination.pending');
+    Route::get('cases/{case}/donor-examination', [DonorExaminationController::class, 'show'])->middleware('can:viewDonorExamination,case')->name('cases.donor-examination.show');
+    Route::put('cases/{case}/donors/{caseDonor}/physical-examination', [DonorExaminationController::class, 'record'])->middleware('can:examineDonor,case')->name('cases.donors.physical-examination.update');
 
     Route::get('donors', [DonorController::class, 'index'])->middleware('can:bb.donor.view')->name('donors.index');
     Route::get('donors/lookup', [DonorController::class, 'lookup'])->middleware('can:bb.donor.view')->name('donors.lookup');

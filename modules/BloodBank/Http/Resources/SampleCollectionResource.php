@@ -24,19 +24,8 @@ final class SampleCollectionResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $case = $this->resource->case;
-
         return [
-            'case' => [
-                'id' => $case->id,
-                'case_no' => $case->case_no,
-                'status' => $case->status->value,
-                'care_type' => $case->care_type->value,
-                'transfusion_reason' => $case->transfusion_reason,
-                'reference_note' => $case->reference_note,
-                'created_at' => $case->created_at?->toIso8601String(),
-                'components' => CaseComponentResource::collection($case->components),
-            ],
+            'case' => CaseSummaryResource::make($this->resource->case)->toArray($request),
             'patient' => $this->resource->patient?->toArray(),
             'invoice' => $this->resource->invoice?->toArray(),
             'subjects' => array_map(fn (CollectionSubject $subject): array => [
