@@ -16,6 +16,9 @@ enum BloodBankPermission: string implements PermissionDefinition
     case DonorExamRecord = 'bb.donor_exam.record';
     case SerologyView = 'bb.serology.view';
     case SerologyRecord = 'bb.serology.record';
+    case CollectionView = 'bb.collection.view';
+    case CollectionCollect = 'bb.collection.collect';
+    case CollectionLabelPrint = 'bb.collection.print_label';
 
     public function module(): string
     {
@@ -29,6 +32,7 @@ enum BloodBankPermission: string implements PermissionDefinition
             self::SampleView, self::SampleCollect, self::SampleLabelPrint => 'Samples',
             self::DonorExamView, self::DonorExamRecord => 'Donor Examination',
             self::SerologyView, self::SerologyRecord => 'Donor Serology',
+            self::CollectionView, self::CollectionCollect, self::CollectionLabelPrint => 'Blood Collection',
             default => 'Cases',
         };
     }
@@ -46,6 +50,9 @@ enum BloodBankPermission: string implements PermissionDefinition
             self::DonorExamRecord => 'Record a donor\'s physical examination and accept or defer the donor (physician)',
             self::SerologyView => 'Open the donor serology work list',
             self::SerologyRecord => 'Record a donor\'s serological investigation and accept or defer the donor',
+            self::CollectionView => 'Open the blood collection work list and search collected bags',
+            self::CollectionCollect => 'Collect blood from an eligible donor into a bag',
+            self::CollectionLabelPrint => 'Print and reprint bag labels (a reprint needs a reason)',
         };
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\BloodBank\Http\Controllers\BloodCollectionController;
 use Modules\BloodBank\Http\Controllers\CaseController;
 use Modules\BloodBank\Http\Controllers\ComponentTypeController;
 use Modules\BloodBank\Http\Controllers\DonorController;
@@ -36,6 +37,13 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::get('donor-serology/pending', [DonorSerologyController::class, 'pending'])->middleware('can:bb.serology.view')->name('donor-serology.pending');
     Route::get('cases/{case}/donor-serology', [DonorSerologyController::class, 'show'])->middleware('can:viewDonorSerology,case')->name('cases.donor-serology.show');
     Route::put('cases/{case}/donors/{caseDonor}/serology', [DonorSerologyController::class, 'record'])->middleware('can:recordDonorSerology,case')->name('cases.donors.serology.update');
+
+    Route::get('blood-collection', [BloodCollectionController::class, 'lookup'])->middleware('can:bb.collection.view')->name('blood-collection.lookup');
+    Route::get('blood-collection/pending', [BloodCollectionController::class, 'pending'])->middleware('can:bb.collection.view')->name('blood-collection.pending');
+    Route::get('cases/{case}/blood-collection', [BloodCollectionController::class, 'show'])->middleware('can:viewBloodCollection,case')->name('cases.blood-collection.show');
+    Route::post('cases/{case}/donors/{caseDonor}/collection', [BloodCollectionController::class, 'collect'])->middleware('can:collectBlood,case')->name('cases.donors.collection.store');
+    Route::post('cases/{case}/bag-labels', [BloodCollectionController::class, 'printLabels'])->middleware('can:printBagLabels,case')->name('cases.bag-labels.store');
+    Route::get('blood-collections', [BloodCollectionController::class, 'index'])->middleware('can:bb.collection.view')->name('blood-collections.index');
 
     Route::get('donors', [DonorController::class, 'index'])->middleware('can:bb.donor.view')->name('donors.index');
     Route::get('donors/lookup', [DonorController::class, 'lookup'])->middleware('can:bb.donor.view')->name('donors.lookup');

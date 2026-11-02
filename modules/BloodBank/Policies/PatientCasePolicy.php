@@ -58,4 +58,19 @@ final class PatientCasePolicy
     {
         return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::SerologyRecord, $case->branch_id);
     }
+
+    public function viewBloodCollection(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CollectionView, $case->branch_id);
+    }
+
+    public function collectBlood(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CollectionCollect, $case->branch_id);
+    }
+
+    public function printBagLabels(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CollectionLabelPrint, $case->branch_id);
+    }
 }

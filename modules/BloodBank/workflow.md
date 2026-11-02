@@ -42,7 +42,8 @@ All APIs are under `/api/blood-bank`.
 | **Test Results** (patient ABO, Rh; review, amend) | 3.3–3.5 | Next | |
 | **Add donor** (Cases page button: invoice lookup, then one donor per save, billed separately) | 4.3 | Done | `GET add-donor?invoice_no=`, `POST cases/{case}/donors` |
 | **Settings → Test Definitions** | 0 | Next | |
-| **Blood Collection** (bag, post-donation vitals, bag label) | 6 | Later | |
+| **Blood Collection** (tabs: Collection, Pending, Collected; bag + bag label) | 6.1–6.2, 6.4 | Done | see step 6 |
+| **Post-donation vitals**, bag stock issue | 6.3, 6.5 | Later | |
 | **Component Preparation** (split whole blood, component labels) | 7 | Later | |
 | **Crossmatch** + Compatibility Report print | 8 | Later | |
 | **Blood Issue** (reserve / issue / return, supply time, close case) | 9 | Later | |
@@ -152,11 +153,24 @@ Serology rules (`DonorSerologyGate`): the case is `open` and the donor belongs t
 
 ### 6. Collection (the bag)
 
-1. Draw blood from an eligible donor → `bb_collections`: `bag_no` (unique, from Numbering), `case_donor_id`, `volume_ml`, `collected_at/by`, `approved_by`, `status = collected`, `notes`.
-2. `bb_case_donors.status = collected`.
-3. About 15 minutes after donation → fill the post-donation columns on the same `bb_donor_screenings` row: `post_pulse_bpm`, `post_bp_systolic` / `post_bp_diastolic`, `post_temperature_f`, `post_recorded_by/at`.
-4. Print bag label → `sh_print_logs` (`bb.bag_label`, `printable_type = bb.collection`).
-5. Bag used up → `bb_consumable_transactions` (`type = issued`), see step 10.
+1. Draw blood from an eligible donor → `bb_collections`: `bag_no` (printed on the bag label; `B{yyMMdd}{0001}`, global, daily reset), `case_donor_id`, `volume_ml`, `collected_at/by`, `approved_by` (not set yet), `status = collected`, `notes`. One bag per case donor.
+2. `bb_case_donors.status = collected`. Physical exam and serology are locked from here on.
+3. About 15 minutes after donation → fill the post-donation columns on the same `bb_donor_screenings` row: `post_pulse_bpm`, `post_bp_systolic` / `post_bp_diastolic`, `post_temperature_f`, `post_recorded_by/at`. (Later.)
+4. Print bag label → `sh_print_logs` (`bb.bag_label`, `printable_type = bb.collection`). The label shows the bag no, donor no and case no as barcodes, plus donor name, age, gender, blood group, patient no, name, age, gender, blood group, volume, collection time and collector.
+5. Bag used up → `bb_consumable_transactions` (`type = issued`), see step 10. (Later.)
+
+Blood Collection APIs (permissions `bb.collection.view` / `bb.collection.collect` / `bb.collection.print_label`, branch scoped):
+
+| API | Screen |
+|---|---|
+| `GET blood-collection?invoice_no=` or `?donor_no=` | Collection tab: an invoice scan shows the case with every donor; a donor no scan shows only that donor, on the latest open case of this branch they are on. Each row has `is_collectable` and `collection` (the bag, with `label_print_count`). |
+| `GET cases/{case}/blood-collection` | Same screen, opened from the Pending tab or a case. |
+| `POST cases/{case}/donors/{caseDonor}/collection` | "Collect": `volume_ml` (50–600), optional `notes`, `collected_at`. Returns the screen plus `collected_collection_id` (201); the frontend then prints the label. |
+| `POST cases/{case}/bag-labels` | "Label" / "Label (All)": `collection_ids`, `reprint_reason` (required for a reprint). Returns the label content per bag. |
+| `GET blood-collection/pending` | Pending tab: open cases with an `eligible` donor (cleared to donate, no bag yet). |
+| `GET blood-collections` | Collected tab and bag barcode scan (`filter[bag_no]`, `filter[case_no]`, `filter[donor_no]`, `filter[status]`, `filter[collected_from/to]`). |
+
+Collection rules (`BloodCollectionGate`): the case is `open` and the donor belongs to it; the donor is `eligible` and has no bag (a cancelled bag does not count). Audit: `bb.blood.collected` on `bb.collection`. Error codes: `CASE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `DONOR_NOT_FIT` (still `registered`), `DONOR_NOT_ELIGIBLE` (still `fit`, serology pending), `DONOR_DEFERRED`, `BAG_ALREADY_COLLECTED` (409), `COLLECTION_NOT_IN_CASE`, `REPRINT_REASON_REQUIRED`.
 
 ### 7. Units and components
 
