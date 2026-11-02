@@ -5,6 +5,7 @@ namespace Modules\BloodBank\Enums;
 enum BloodBankAuditAction: string
 {
     case CaseRegistered = 'bb.case.registered';
+    case CaseDonorAdded = 'bb.case.donor_added';
     case DonorRegistered = 'bb.donor.registered';
     case SampleCollected = 'bb.sample.collected';
     case DonorExamined = 'bb.donor.examined';

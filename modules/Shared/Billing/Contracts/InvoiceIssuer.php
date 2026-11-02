@@ -4,8 +4,10 @@ namespace Modules\Shared\Billing\Contracts;
 
 use Modules\Shared\Auth\Exceptions\BranchInactive;
 use Modules\Shared\Auth\Models\User;
+use Modules\Shared\Billing\Data\AdditionalInvoiceData;
 use Modules\Shared\Billing\Data\CreateInvoiceData;
 use Modules\Shared\Billing\Data\IssuedInvoice;
+use Modules\Shared\Billing\Exceptions\InvoiceNoTaken;
 
 /**
  * Lets other modules bill a patient from their own forms (e.g. Blood Bank case registration): registers the
@@ -19,4 +21,13 @@ interface InvoiceIssuer
      * @throws BranchInactive
      */
     public function issue(User $actor, CreateInvoiceData $data): IssuedInvoice;
+
+    /**
+     * Bills the source bill's patient again, with the same referral, for one catalog item, under an invoice
+     * number issued elsewhere (e.g. an extra donor's charge on the vendor system).
+     *
+     * @throws BranchInactive
+     * @throws InvoiceNoTaken
+     */
+    public function issueAdditional(User $actor, AdditionalInvoiceData $data): IssuedInvoice;
 }

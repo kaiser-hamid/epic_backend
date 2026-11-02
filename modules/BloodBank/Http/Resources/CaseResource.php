@@ -6,8 +6,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\BloodBank\Data\CaseView;
+use Modules\BloodBank\Models\CaseDonor;
 
 /**
+ * A case with its patient and invoice. With donors loaded, each donor row carries `invoice_no`: its own bill
+ * (an added donor's charge), or null for donors registered with the case.
+ *
  * @property-read CaseView $resource
  */
 final class CaseResource extends JsonResource
@@ -31,7 +35,10 @@ final class CaseResource extends JsonResource
             'patient' => $this->resource->patient?->toArray(),
             'invoice' => $this->resource->invoice?->toArray(),
             'components' => $this->when($case->relationLoaded('components'), fn () => CaseComponentResource::collection($case->components)),
-            'donors' => $this->when($case->relationLoaded('caseDonors'), fn () => CaseDonorResource::collection($case->caseDonors)),
+            'donors' => $this->when($case->relationLoaded('caseDonors'), fn () => $case->caseDonors->map(fn (CaseDonor $caseDonor): array => [
+                ...CaseDonorResource::make($caseDonor)->toArray($request),
+                'invoice_no' => $caseDonor->billing_id === null ? null : ($this->resource->donorInvoices[$caseDonor->billing_id] ?? null)?->invoiceNo,
+            ])->values()->all()),
             'donors_count' => $case->relationLoaded('caseDonors') ? $case->caseDonors->count() : $case->case_donors_count,
             'created_at' => $case->created_at?->toIso8601String(),
         ];

@@ -2,9 +2,13 @@
 
 namespace Modules\BloodBank\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Modules\BloodBank\Actions\AddCaseDonor;
 use Modules\BloodBank\Actions\RegisterCase;
+use Modules\BloodBank\Data\AddCaseDonorData;
+use Modules\BloodBank\Data\CaseLookupData;
 use Modules\BloodBank\Data\RegisterCaseData;
 use Modules\BloodBank\Http\Resources\CaseResource;
 use Modules\BloodBank\Models\PatientCase;
@@ -17,6 +21,7 @@ final class CaseController
         private readonly ListCases $listCases,
         private readonly ShowCase $showCase,
         private readonly RegisterCase $registerCase,
+        private readonly AddCaseDonor $addCaseDonor,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -32,5 +37,15 @@ final class CaseController
     public function show(PatientCase $case): CaseResource
     {
         return CaseResource::make($this->showCase->get($case));
+    }
+
+    public function lookup(CaseLookupData $data): CaseResource
+    {
+        return CaseResource::make($this->showCase->find($data));
+    }
+
+    public function addDonor(Request $request, PatientCase $case, AddCaseDonorData $data): JsonResponse
+    {
+        return CaseResource::make($this->addCaseDonor->handle($request->user(), $case, $data))->response()->setStatusCode(201);
     }
 }

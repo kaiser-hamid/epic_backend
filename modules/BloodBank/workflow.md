@@ -40,7 +40,7 @@ All APIs are under `/api/blood-bank`.
 | **Donor Examination** (physician: pre-donation physical exam + Accept / Defer on one form) | 5.1 | Done | see step 5 |
 | **Donor Serology** (blood group + screening results and Accept / Defer on one form) | 5.3–5.4 | Done | see step 5 |
 | **Test Results** (patient ABO, Rh; review, amend) | 3.3–3.5 | Next | |
-| **Replacement donor** (add a donor to a case after a deferral) | 4.3 | Next | |
+| **Add donor** (Cases page button: invoice lookup, then one donor per save, billed separately) | 4.3 | Done | `GET add-donor?invoice_no=`, `POST cases/{case}/donors` |
 | **Settings → Test Definitions** | 0 | Next | |
 | **Blood Collection** (bag, post-donation vitals, bag label) | 6 | Later | |
 | **Component Preparation** (split whole blood, component labels) | 7 | Later | |
@@ -107,7 +107,13 @@ Skip steps 4–7 when the blood is supplied directly from storage; go to step 8 
 
 1. Find or create the donor (a person, reused across cases) → `bb_donors`: `donor_no` (`D{yyMM}{000001}`, global, monthly reset; find returning donors with `GET /api/blood-bank/donors`), name, age/DOB, gender, `blood_group`, phone, `national_id`, `is_regular_volunteer` (the form's "Would you like to be a regular voluntary donor?"; yes / no / not asked = null, updated each time they're asked).
 2. Attach them to this case → `bb_case_donors`: `case_id`, `donor_id`, `sequence_no` (1, 2, 3… per case), `status = registered`.
-3. Replacement donor (first one deferred) → **new** `bb_case_donors` row with the next `sequence_no`. The old row keeps its `deferred` status. If the replacement is billed separately, its new bill goes in `bb_case_donors.billing_id`.
+3. Add a donor to an existing case (a replacement after a deferral, or one more). The "Add donor" page first opens the case with `GET add-donor?invoice_no=` (the case bill or an added donor's bill, session branch only, else `CASE_NOT_FOUND`), which returns the case detail; every donor row there has `invoice_no` (its own bill, or null for donors registered with the case). Then one donor per save → `POST cases/{case}/donors` (`AddCaseDonor`, permission `bb.case.create` for both), one transaction:
+   - Body: `invoice_no` (the vendor's invoice for the donor charge, alpha-numeric, max 30) and `donor_id` (returning donor, found with `GET donors/lookup?phone=`) **or** `donor` (new donor, registered in the same request).
+   - Shared bills it through `InvoiceIssuer::issueAdditional()`: a new `sh_billing` row under that invoice no (not generated), for the case's patient, with the case bill's referral copied, and one line of the fixed catalog item `BB-ADDL-DONOR` "Additional Donor Charge" (Tk 1000, inserted by a Shared migration, identified by code, rate snapshotted).
+   - **New** `bb_case_donors` row: next `sequence_no`, `status = registered`, `billing_id` = the new bill. Earlier rows keep their status (a deferred donor stays `deferred`).
+   - Audit `bb.case.donor_added` on `bb.case` (case no, donor, sequence, invoice no, amount); Shared audits the bill.
+   - Errors: `CASE_NOT_OPEN`, `DONOR_ALREADY_IN_CASE` (the person is already on this case, even deferred), `INVOICE_NO_TAKEN` (any bill, also a deleted one, has this number), `VALIDATION_FAILED`, `FORBIDDEN` (another branch's case). Returns the case detail (201).
+   - Scanning the new invoice no on the Sample Collection, Donor Examination or Donor Serology screen opens the case.
 
 ### 5. Donor screening and eligibility
 

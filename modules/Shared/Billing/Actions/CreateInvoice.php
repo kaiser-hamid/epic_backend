@@ -10,6 +10,7 @@ use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Data\CreateInvoiceData;
 use Modules\Shared\Billing\Data\InvoiceItemData;
 use Modules\Shared\Billing\Enums\BillingStatus;
+use Modules\Shared\Billing\Exceptions\InvoiceNoTaken;
 use Modules\Shared\Billing\Models\Billing;
 use Modules\Shared\Billing\Services\InvoiceNumber;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
@@ -31,13 +32,21 @@ final class CreateInvoice
     ) {}
 
     /**
+     * `$invoiceNo` is for a bill already numbered outside this system (the vendor's); otherwise the branch's next
+     * number is issued.
+     *
      * @throws BranchInactive
+     * @throws InvoiceNoTaken
      */
-    public function handle(User $actor, CreateInvoiceData $data): Billing
+    public function handle(User $actor, CreateInvoiceData $data, ?string $invoiceNo = null): Billing
     {
         $branch = $this->currentBranch->get() ?? throw new BranchInactive;
 
-        return DB::transaction(function () use ($actor, $data, $branch): Billing {
+        return DB::transaction(function () use ($actor, $data, $branch, $invoiceNo): Billing {
+            if ($invoiceNo !== null && Billing::withTrashed()->where('invoice_no', $invoiceNo)->exists()) {
+                throw new InvoiceNoTaken;
+            }
+
             $patient = $data->patient === null
                 ? PatientMaster::query()->findOrFail($data->patientId)
                 : $this->registerPatient->handle($actor, $data->patient);
@@ -45,7 +54,7 @@ final class CreateInvoice
             $lines = $this->lines($data->items);
 
             $billing = Billing::create([
-                'invoice_no' => $this->invoiceNumber->next($branch),
+                'invoice_no' => $invoiceNo ?? $this->invoiceNumber->next($branch),
                 'patient_master_id' => $patient->id,
                 'branch_id' => $branch->id,
                 'amount' => array_sum(array_column($lines, 'amount')),

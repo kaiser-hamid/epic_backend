@@ -17,6 +17,8 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::get('cases', [CaseController::class, 'index'])->middleware('can:bb.case.view')->name('cases.index');
     Route::post('cases', [CaseController::class, 'store'])->middleware('can:bb.case.create')->name('cases.store');
     Route::get('cases/{case}', [CaseController::class, 'show'])->middleware('can:view,case')->name('cases.show');
+    Route::get('add-donor', [CaseController::class, 'lookup'])->middleware('can:bb.case.create')->name('add-donor.lookup');
+    Route::post('cases/{case}/donors', [CaseController::class, 'addDonor'])->middleware('can:addDonor,case')->name('cases.donors.store');
 
     Route::get('sample-collection', [SampleCollectionController::class, 'lookup'])->middleware('can:bb.sample.view')->name('sample-collection.lookup');
     Route::get('sample-collection/pending', [SampleCollectionController::class, 'pending'])->middleware('can:bb.sample.view')->name('sample-collection.pending');

@@ -10,7 +10,8 @@ use RuntimeException;
 
 /**
  * 500 demo test items with realistic names and rates, coded per department (`HAEM-001`, `XRAY-012`), about
- * 1 in 30 inactive. Needs `DepartmentSeeder`. Skipped when test items exist.
+ * 1 in 30 inactive. Needs `DepartmentSeeder`. Skipped when the demo items exist (fixed items added by
+ * migrations, such as `BB-ADDL-DONOR`, do not count).
  */
 final class TestItemSeeder extends Seeder
 {
@@ -18,7 +19,7 @@ final class TestItemSeeder extends Seeder
 
     public function run(): void
     {
-        if (TestItem::query()->exists()) {
+        if (TestItem::query()->where('code', 'HAEM-001')->exists()) {
             return;
         }
 
