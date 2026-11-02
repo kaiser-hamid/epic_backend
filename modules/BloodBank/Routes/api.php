@@ -3,12 +3,14 @@
 use Illuminate\Support\Facades\Route;
 use Modules\BloodBank\Http\Controllers\BloodCollectionController;
 use Modules\BloodBank\Http\Controllers\CaseController;
+use Modules\BloodBank\Http\Controllers\ComponentPreparationController;
 use Modules\BloodBank\Http\Controllers\ComponentTypeController;
 use Modules\BloodBank\Http\Controllers\DonorController;
 use Modules\BloodBank\Http\Controllers\DonorExaminationController;
 use Modules\BloodBank\Http\Controllers\DonorSerologyController;
 use Modules\BloodBank\Http\Controllers\SampleCollectionController;
 use Modules\BloodBank\Http\Controllers\SampleController;
+use Modules\BloodBank\Http\Controllers\StorageLocationController;
 
 /*
 | Blood Bank API under `/api/blood-bank`. Permission checks use `can:` and are evaluated in the session's branch.
@@ -45,9 +47,17 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::post('cases/{case}/bag-labels', [BloodCollectionController::class, 'printLabels'])->middleware('can:printBagLabels,case')->name('cases.bag-labels.store');
     Route::get('blood-collections', [BloodCollectionController::class, 'index'])->middleware('can:bb.collection.view')->name('blood-collections.index');
 
+    Route::get('component-preparation', [ComponentPreparationController::class, 'lookup'])->middleware('can:bb.unit.view')->name('component-preparation.lookup');
+    Route::get('component-preparation/pending', [ComponentPreparationController::class, 'pending'])->middleware('can:bb.unit.view')->name('component-preparation.pending');
+    Route::get('cases/{case}/bags/{collection}/component-preparation', [ComponentPreparationController::class, 'show'])->middleware('can:viewUnits,case')->name('cases.bags.component-preparation.show');
+    Route::post('cases/{case}/bags/{collection}/units', [ComponentPreparationController::class, 'prepare'])->middleware('can:prepareUnits,case')->name('cases.bags.units.store');
+    Route::post('cases/{case}/unit-labels', [ComponentPreparationController::class, 'printLabels'])->middleware('can:printUnitLabels,case')->name('cases.unit-labels.store');
+    Route::get('units', [ComponentPreparationController::class, 'index'])->middleware('can:bb.unit.view')->name('units.index');
+
     Route::get('donors', [DonorController::class, 'index'])->middleware('can:bb.donor.view')->name('donors.index');
     Route::get('donors/lookup', [DonorController::class, 'lookup'])->middleware('can:bb.donor.view')->name('donors.lookup');
     Route::get('donors/{donor}', [DonorController::class, 'show'])->middleware('can:bb.donor.view')->name('donors.show');
 
     Route::get('component-types', [ComponentTypeController::class, 'index'])->name('component-types.index');
+    Route::get('storage-locations', [StorageLocationController::class, 'index'])->name('storage-locations.index');
 });

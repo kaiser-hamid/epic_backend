@@ -20,6 +20,11 @@ final class ComponentType extends Model
     use HasFactory;
 
     /**
+     * Whole blood: a bag kept as it is, numbered with the bag no itself.
+     */
+    public const WHOLE_BLOOD = 'WB';
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

@@ -5,9 +5,11 @@ namespace Modules\BloodBank\Database\Seeders;
 use Illuminate\Database\Seeder;
 use Modules\BloodBank\Enums\StorageLocationType;
 use Modules\BloodBank\Models\StorageLocation;
+use Modules\Shared\Branch\Models\Branch;
 
 /**
- * Blood bank fridges, freezers and the platelet agitator. Matched on `code`, so it is safe to re-run.
+ * Blood bank fridges, freezers and the platelet agitator of every branch. Matched on branch and `code`, so it is
+ * safe to re-run.
  */
 final class StorageLocationSeeder extends Seeder
 {
@@ -22,8 +24,13 @@ final class StorageLocationSeeder extends Seeder
             ['code' => 'QRN-01', 'name' => 'Quarantine Shelf', 'type' => StorageLocationType::Other, 'min_temperature_c' => null, 'max_temperature_c' => null],
         ];
 
-        foreach ($locations as $location) {
-            StorageLocation::query()->updateOrCreate(['code' => $location['code']], [...$location, 'is_active' => true]);
+        foreach (Branch::query()->pluck('id') as $branchId) {
+            foreach ($locations as $location) {
+                StorageLocation::query()->updateOrCreate(
+                    ['branch_id' => $branchId, 'code' => $location['code']],
+                    [...$location, 'is_active' => true],
+                );
+            }
         }
     }
 }

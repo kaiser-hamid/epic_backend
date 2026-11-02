@@ -44,13 +44,13 @@ All APIs are under `/api/blood-bank`.
 | **Settings → Test Definitions** | 0 | Next | |
 | **Blood Collection** (tabs: Collection, Pending, Collected; bag + bag label) | 6.1–6.2, 6.4 | Done | see step 6 |
 | **Post-donation vitals**, bag stock issue | 6.3, 6.5 | Later | |
-| **Component Preparation** (split whole blood, component labels) | 7 | Later | |
+| **Component Preparation** (tabs: Preparation, Pending, Units; whole blood or components, storage, component labels) | 7 | Done | see step 7 |
 | **Crossmatch** + Compatibility Report print | 8 | Later | |
 | **Blood Issue** (reserve / issue / return, supply time, close case) | 9 | Later | |
 | **Inventory / Stock** (units by location, move, quarantine, discard) | 9 | Later | |
 | **Expiry Dashboard** | 9 | Later | |
 | **Consumables** (items, receive / issue / adjust, ledger) | 10 | Later | |
-| **Settings → Component Types, Storage Locations** | 0 | Later | `GET component-types` (picker) exists |
+| **Settings → Component Types, Storage Locations** | 0 | Later | `GET component-types`, `GET storage-locations` (pickers; locations are per branch) exist |
 
 Sample Collection APIs (permissions `bb.sample.view` / `bb.sample.collect` / `bb.sample.print_label`, branch scoped):
 
@@ -174,10 +174,33 @@ Collection rules (`BloodCollectionGate`): the case is `open` and the donor belon
 
 ### 7. Units and components
 
-1. Whole-blood unit → `bb_units`: `unit_no = bag_no`, `collection_id`, `parent_unit_id = null`, `component_type_id` (WB), `blood_group`, `volume_ml`, `prepared_at`, `expires_at = prepared_at + shelf_life_hours`, `storage_location_id`, `status = available`, `case_id = null`.
-2. Separate into components → one **new** `bb_units` row per component: `unit_no = bag_no-CODE` (e.g. `BB-B-000123-PCV`, `-n` for splits), same `collection_id`, `parent_unit_id` = the whole-blood unit, its own component type, expiry and location.
-3. Component label → `sh_print_logs` (`bb.component_label`, `printable_type = bb.unit`).
-4. Every barcode scan looks up `sample_no` or `unit_no`; there are no barcode columns.
+A bag is prepared once, either kept as whole blood or separated into components. Stock is per branch: `bb_units.branch_id` comes from the case, and each branch has its own `bb_storage_locations`.
+
+1. Keep as whole blood → one `bb_units` row: `unit_no = bag_no`, `component_type_id` (WB).
+2. Or separate into components → one `bb_units` row per component: `unit_no = bag_no-CODE` (e.g. `B2611020001-PCV`; a component made twice gets `-1`, `-2`). No whole-blood row is kept for a separated bag; the components link to the bag through `collection_id` and have `parent_unit_id = null` (kept for splitting a unit later). Whole blood cannot be combined with components.
+3. Every unit: `branch_id`, `collection_id`, `blood_group` (the donor's, from serology), `volume_ml`, `prepared_at`, `expires_at = bb_collections.collected_at + shelf_life_hours`, `storage_location_id` (any active location of the branch; required for stock, optional for a unit for the patient).
+4. The preparation must strictly match what the case was billed for (`bb_case_components`) and still needs (quantity minus units already reserved or issued to the case):
+   - "For this patient" → `status = reserved`, `case_id` = the case; only for a component the case still needs, up to the outstanding quantity.
+   - The case needs whole blood (and no components) → the bag must be kept as whole blood for the patient.
+   - The case needs components → the bag must be separated, with one unit for the patient of every component still needed; the rest goes to stock.
+   - The case needs nothing more (e.g. an extra donor) → everything goes to stock: `status = available`, `case_id = null`.
+5. One `bb_unit_movements` row per unit (`null → available / reserved`, to the location, with `case_id`). Audit `bb.units.prepared` on `bb.collection`.
+6. Component label per unit → `sh_print_logs` (`bb.component_label`, `printable_type = bb.unit`): unit no barcode, component, blood group, volume, collected / prepared / expiry, storage condition, bag no, donor no, the donor's screening results and, when reserved, the case and patient.
+7. Every barcode scan looks up `sample_no`, `bag_no` or `unit_no`; there are no barcode columns.
+
+Component Preparation APIs (permissions `bb.unit.view` / `bb.unit.prepare` / `bb.unit.print_label`, branch scoped):
+
+| API | Screen |
+|---|---|
+| `GET component-preparation?bag_no=` | Preparation tab: bag scan → bag (donor, case, patient), billed components with `held_count` and `needed_count`, the bag's units with `label_print_count`, `can_prepare`. |
+| `GET cases/{case}/bags/{collection}/component-preparation` | Same screen, opened from the Pending tab. |
+| `POST cases/{case}/bags/{collection}/units` | "Prepare": `units: [{component_type_id, storage_location_id?, volume_ml?, for_case}]` (1–6), optional `prepared_at` (ISO 8601; `toISOString()` with milliseconds and `Z` is accepted and converted to Asia/Dhaka). Returns the screen plus `prepared_unit_ids` (201); the frontend then prints the labels. |
+| `POST cases/{case}/unit-labels` | "Label" / "Label (All)": `unit_ids`, `reprint_reason` (required for a reprint). Returns the label content per unit. |
+| `GET component-preparation/pending` | Pending tab: collected bags with no units yet, oldest first. |
+| `GET units` | Units tab and unit barcode scan (`filter[unit_no]`, `filter[bag_no]`, `filter[case_no]`, `filter[component_type_id]`, `filter[blood_group]`, `filter[status]`, `filter[storage_location_id]`, `filter[expires_before]`), soonest expiry first. |
+| `GET storage-locations` | Location picker: the branch's active locations. |
+
+Error codes: `BAG_NOT_FOUND` (404), `CASE_NOT_OPEN`, `COLLECTION_NOT_IN_CASE`, `BAG_CANCELLED`, `BAG_ALREADY_PREPARED` (409), `COMPONENT_NOT_NEEDED` (for the patient but not billed, or more than billed), `COMPONENT_REQUIREMENT_NOT_MET` (the patient does not get what the case still needs), `UNIT_NOT_IN_CASE`, `REPRINT_REASON_REQUIRED`, `VALIDATION_FAILED` (whole blood with components, inactive component type, stock unit without a location, another branch's or inactive location, `prepared_at` before collection).
 
 ### 8. Crossmatch and Compatibility Test Report
 
@@ -205,7 +228,7 @@ Where each part of the report comes from (nothing is copied):
 
 ### 9. Assign, issue, storage, expiry
 
-**Which unit goes to the patient:** a unit is assigned by setting `bb_units.case_id`. It must match one of the case's `bb_case_components` lines (same `component_type_id`) and have a current crossmatch with this case's patient where both major and minor are `compatible`. A component line is fulfilled when the number of units assigned to the case for that component type reaches its `quantity`.
+**Which unit goes to the patient:** a unit is assigned by setting `bb_units.case_id`. It must match one of the case's `bb_case_components` lines (same `component_type_id`). A stock unit also needs a current crossmatch with this case's patient where both major and minor are `compatible` before it is reserved; a unit from the case's own donor is reserved at preparation (step 7) and needs the compatible crossmatch before issue. A component line is fulfilled when the number of units assigned to the case for that component type reaches its `quantity`.
 
 Every change to a unit updates `bb_units.status` / `storage_location_id` / `case_id` **and** appends a `bb_unit_movements` row: `from_status → to_status`, `from_location_id → to_location_id`, `case_id`, `reason`, `performed_by`, `occurred_at`.
 

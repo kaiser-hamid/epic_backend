@@ -14,7 +14,7 @@ use Modules\BloodBank\Enums\UnitStatus;
 use Modules\Shared\Patient\Enums\BloodGroup;
 
 #[Table('bb_units')]
-#[Fillable(['unit_no', 'collection_id', 'parent_unit_id', 'component_type_id', 'blood_group', 'volume_ml', 'status', 'storage_location_id', 'case_id', 'prepared_at', 'expires_at'])]
+#[Fillable(['branch_id', 'unit_no', 'collection_id', 'parent_unit_id', 'component_type_id', 'blood_group', 'volume_ml', 'status', 'storage_location_id', 'case_id', 'prepared_at', 'expires_at'])]
 #[UseFactory(UnitFactory::class)]
 final class Unit extends Model
 {

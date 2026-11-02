@@ -12,7 +12,7 @@ use Modules\BloodBank\Database\Factories\StorageLocationFactory;
 use Modules\BloodBank\Enums\StorageLocationType;
 
 #[Table('bb_storage_locations')]
-#[Fillable(['code', 'name', 'type', 'min_temperature_c', 'max_temperature_c', 'is_active'])]
+#[Fillable(['branch_id', 'code', 'name', 'type', 'min_temperature_c', 'max_temperature_c', 'is_active'])]
 #[UseFactory(StorageLocationFactory::class)]
 final class StorageLocation extends Model
 {

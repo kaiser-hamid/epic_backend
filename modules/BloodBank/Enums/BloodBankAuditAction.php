@@ -13,4 +13,5 @@ enum BloodBankAuditAction: string
     case DonorSerologyRecorded = 'bb.donor.serology_recorded';
     case DonorSerologyAmended = 'bb.donor.serology_amended';
     case BloodCollected = 'bb.blood.collected';
+    case UnitsPrepared = 'bb.units.prepared';
 }

@@ -73,4 +73,19 @@ final class PatientCasePolicy
     {
         return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CollectionLabelPrint, $case->branch_id);
     }
+
+    public function viewUnits(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::UnitView, $case->branch_id);
+    }
+
+    public function prepareUnits(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::UnitPrepare, $case->branch_id);
+    }
+
+    public function printUnitLabels(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::UnitLabelPrint, $case->branch_id);
+    }
 }

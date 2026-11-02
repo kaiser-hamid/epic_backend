@@ -8,6 +8,7 @@ use Modules\BloodBank\Models\Collection;
 use Modules\BloodBank\Models\ComponentType;
 use Modules\BloodBank\Models\Unit;
 use Modules\BloodBank\Services\UnitNumberGenerator;
+use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Patient\Enums\BloodGroup;
 
 /**
@@ -25,6 +26,7 @@ final class UnitFactory extends Factory
     public function definition(): array
     {
         return [
+            'branch_id' => Branch::factory(),
             'collection_id' => Collection::factory(),
             'unit_no' => fn (array $attributes): string => (new UnitNumberGenerator)
                 ->forUnit(Collection::findOrFail($attributes['collection_id'])->bag_no),
