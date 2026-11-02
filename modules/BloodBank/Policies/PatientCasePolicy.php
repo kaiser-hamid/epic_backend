@@ -43,4 +43,14 @@ final class PatientCasePolicy
     {
         return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::DonorExamRecord, $case->branch_id);
     }
+
+    public function viewDonorSerology(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::SerologyView, $case->branch_id);
+    }
+
+    public function recordDonorSerology(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::SerologyRecord, $case->branch_id);
+    }
 }

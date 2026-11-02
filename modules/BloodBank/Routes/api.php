@@ -5,6 +5,7 @@ use Modules\BloodBank\Http\Controllers\CaseController;
 use Modules\BloodBank\Http\Controllers\ComponentTypeController;
 use Modules\BloodBank\Http\Controllers\DonorController;
 use Modules\BloodBank\Http\Controllers\DonorExaminationController;
+use Modules\BloodBank\Http\Controllers\DonorSerologyController;
 use Modules\BloodBank\Http\Controllers\SampleCollectionController;
 use Modules\BloodBank\Http\Controllers\SampleController;
 
@@ -28,6 +29,11 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::get('donor-examination/pending', [DonorExaminationController::class, 'pending'])->middleware('can:bb.donor_exam.view')->name('donor-examination.pending');
     Route::get('cases/{case}/donor-examination', [DonorExaminationController::class, 'show'])->middleware('can:viewDonorExamination,case')->name('cases.donor-examination.show');
     Route::put('cases/{case}/donors/{caseDonor}/physical-examination', [DonorExaminationController::class, 'record'])->middleware('can:examineDonor,case')->name('cases.donors.physical-examination.update');
+
+    Route::get('donor-serology', [DonorSerologyController::class, 'lookup'])->middleware('can:bb.serology.view')->name('donor-serology.lookup');
+    Route::get('donor-serology/pending', [DonorSerologyController::class, 'pending'])->middleware('can:bb.serology.view')->name('donor-serology.pending');
+    Route::get('cases/{case}/donor-serology', [DonorSerologyController::class, 'show'])->middleware('can:viewDonorSerology,case')->name('cases.donor-serology.show');
+    Route::put('cases/{case}/donors/{caseDonor}/serology', [DonorSerologyController::class, 'record'])->middleware('can:recordDonorSerology,case')->name('cases.donors.serology.update');
 
     Route::get('donors', [DonorController::class, 'index'])->middleware('can:bb.donor.view')->name('donors.index');
     Route::get('donors/lookup', [DonorController::class, 'lookup'])->middleware('can:bb.donor.view')->name('donors.lookup');

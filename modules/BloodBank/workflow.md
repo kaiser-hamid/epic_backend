@@ -38,7 +38,8 @@ All APIs are under `/api/blood-bank`.
 | **Donors** | 4.1 | Done | `GET donors`, `GET donors/lookup`, `GET donors/{donor}` |
 | **Sample Collection** (tabs: Collection, Pending, Collected) | 3.1–3.2, 5.2 | Done | see below |
 | **Donor Examination** (physician: pre-donation physical exam + Accept / Defer on one form) | 5.1 | Done | see step 5 |
-| **Test Results** (work list: ABO, Rh, serology; review, amend; donor serology Accept / Defer) | 3.3–3.5, 5.3–5.4 | Next | |
+| **Donor Serology** (blood group + screening results and Accept / Defer on one form) | 5.3–5.4 | Done | see step 5 |
+| **Test Results** (patient ABO, Rh; review, amend) | 3.3–3.5 | Next | |
 | **Replacement donor** (add a donor to a case after a deferral) | 4.3 | Next | |
 | **Settings → Test Definitions** | 0 | Next | |
 | **Blood Collection** (bag, post-donation vitals, bag label) | 6 | Later | |
@@ -71,7 +72,7 @@ Collection rules: a subject is collectable while the case is `open` and it has n
 |---|---|
 | `sh_departments`, `sh_test_items` | Billable catalog: what the counter can charge for (code, name, `rate` in paisa). |
 | `sh_doctors` | Referring doctors / consultants. |
-| `bb_test_definitions` | The Blood Bank lab tests and their result fields: `result_type` (text / number / option), `unit`, `reference_range`, `method` (printed on the report, e.g. "Immunochromatographic Test", "ICT method"), `options` (for option lists), `applies_to` (patient / donor / both). Blood Group (ABO) (option A / B / AB / O) and Rhesus (D) (option Positive / Negative), both. Donor screening: HBsAg, Anti HCV, Anti HIV (1 and II p24AG), Syphilis (option `non_reactive` / `reactive`), Malaria Parasite (option `not_found` / `found`). |
+| `bb_test_definitions` | The Blood Bank lab tests and their result fields: `result_type` (text / number / option), `unit`, `reference_range`, `method` (printed on the report, e.g. "Immunochromatographic Test", "ICT method"), `options` (for option lists), `applies_to` (patient / donor / both). Inserted by the migration `insert_bb_serology_test_definitions` (codes in `SerologyTest`; the form depends on them, so they are not a seeder): `BLOOD_GROUP` (one combined option, the `BloodGroup` values `A_POS` … `O_NEG`), and donor screening `HBSAG`, `ANTI_HCV`, `ANTI_HIV` (1 & 2), `SYPHILIS` (option `non_reactive` / `reactive`). No `method` for now. Malaria is not on the form. |
 | `bb_component_types` | WB, PCV, FP, CRYO, PLATELET, PLASMA… with `shelf_life_hours` (drives `expires_at`) and `default_location_type`. |
 | `bb_storage_locations` | Fridges, freezers, agitators (`type`), with temperature range. |
 | `bb_consumables` | Stock items (bags, reagents) with `minimum_stock`. |
@@ -116,8 +117,8 @@ The paper "Physical/Medical Examination" + "Serological Investigations" form, do
 
 1. **Physical examination (physician, one form)** → `bb_donor_screenings` (one row per `case_donor_id`): `weight_kg`, `height_cm` (optional; UI may accept feet/inches, stored as cm), `hemoglobin_g_dl`, pre-donation `pre_pulse_bpm`, `pre_bp_systolic` / `pre_bp_diastolic` (140/90 → 140 and 90), `pre_temperature_f`, `examined_by/at`. Post-donation columns stay empty until step 6. The same form records the required decision → `bb_case_donors`: `status` (`fit` = "Accepted" / `deferred`), `deferral_reason` (= "Reason for deferral", required when deferred), `assessed_by/at`. The audit log keeps old and new values of a correction.
 2. **Donor sample** (only for a `fit` donor; `DONOR_NOT_FIT` otherwise) → `bb_samples` with `subject_type = donor`, `case_donor_id` set. Label printed (`sh_print_logs`).
-3. **Serological investigation** → `bb_test_results`, one row per test (ABO, Rh, HBsAg, Anti HCV, Anti HIV, Syphilis, Malaria), same versioning rules as step 3. Signature of Technologist = `tested_by` / `reviewed_by`. The confirmed blood group is copied to `bb_donors.blood_group`. These results are what the Compatibility Test Report later prints under "Screening Tests".
-4. **Serology Accept / Defer** (required on the results form; only for a `fit` donor) → `bb_case_donors`: `status` (`eligible` / `deferred`), `deferral_reason`, `assessed_by/at` overwritten with this decision (the audit log keeps the physical-exam decision; the examining physician is also `bb_donor_screenings.examined_by`).
+3. **Serological investigation** (one form with step 4) → `bb_test_results` on the donor sample, one row per test (`BLOOD_GROUP`, `HBSAG`, `ANTI_HCV`, `ANTI_HIV`, `SYPHILIS`), `status = entered`, `tested_by/at` = the user and server time of the save. A changed value gets a **new row** (`version + 1`, `amendment_reason` required, old row `is_current = false`); an unchanged value is not re-versioned. The blood group overwrites `bb_donors.blood_group` on every save. The sample moves to `tested`. These results are what the Compatibility Test Report later prints under "Screening Tests". There is no review step: the physician who saves the form signs the results (`tested_by`), and `reviewed_by/at` stay empty.
+4. **Serology Accept / Defer** (required on the same form) → `bb_case_donors`: `status` (`eligible` / `deferred`), `deferral_reason` (replaces the earlier one; cleared on Accept), `assessed_by/at` overwritten with this decision only when the decision changes (the audit log keeps the physical-exam decision; the examining physician is also `bb_donor_screenings.examined_by`). Accept is refused while any screening result is `reactive`.
 
 `fit` means passed the physical exam; `eligible` means **cleared to donate** (physical + serology). Whether a bag suits the patient is the crossmatch (step 8). One case can have several case donors; each is marked on its own.
 
@@ -131,6 +132,17 @@ Donor Examination APIs (permissions `bb.donor_exam.view` / `bb.donor_exam.record
 | `GET donor-examination/pending` | Pending tab: open cases with a donor still `registered`. |
 
 Examination rules: the case is `open`, the donor belongs to it, and no donor sample has been drawn yet (a rejected sample does not count) and the donor is not yet `eligible` / `collected` (otherwise `EXAMINATION_LOCKED`, 409). A save replaces the form; `examined_by/at` are the user and server time of the latest save (no time is accepted from the client); `assessed_by/at` change only when the decision changes. Audit: `bb.donor.examined` (first save), `bb.donor.examination_amended` (old/new values), on `bb.case_donor`. Values must be plausible (weight 20–250 kg, height 50–250 cm, Hb 1–25 g/dL, pulse 20–250, systolic 50–300, diastolic 20–200 and below systolic, temperature 90–110 °F); clinical thresholds are the physician's call, not enforced. Error codes: `CASE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `EXAMINATION_LOCKED`.
+
+Donor Serology APIs (permissions `bb.serology.view` / `bb.serology.record`, branch scoped):
+
+| API | Screen |
+|---|---|
+| `GET donor-serology?invoice_no=` or `?sample_no=` | Invoice scan (case bill or a replacement donor's bill) → every donor of the case; donor sample tube scan → only that sample's donor (a patient sample or another branch's sample is `DONOR_SAMPLE_NOT_FOUND`, 404). Returns case, patient, invoice, one row per donor with its `sample` (null until collected), `serology` (current results, `version`, `tested_by/at`; null until saved), `decision` (serology: `accepted`, `deferred`, null), `deferral_reason`, `assessed_by/at`, `can_record`. |
+| `GET cases/{case}/donor-serology` | Same screen, opened from the Pending tab or a case. |
+| `PUT cases/{case}/donors/{caseDonor}/serology` | Save the form: `blood_group`, `hbsag`, `anti_hcv`, `anti_hiv`, `syphilis`, `decision` (required: `accepted` / `deferred`), `deferral_reason` (required when deferred, else not allowed), `amendment_reason` (required when a saved result changes). Returns the screen. |
+| `GET donor-serology/pending` | Pending tab: open cases with a `fit` donor whose sample is collected (not rejected). |
+
+Serology rules (`DonorSerologyGate`): the case is `open` and the donor belongs to it; the donor is `fit`, or already decided at serology (`eligible`, or `deferred` with saved results) for a correction; the donor sample is collected (a rejected sample does not count). Switching the own Accept / Defer needs no amendment reason. Audit: `bb.donor.serology_recorded` (first save), `bb.donor.serology_amended` (old/new values, amendment reason), on `bb.case_donor`. Error codes: `CASE_NOT_FOUND`, `DONOR_SAMPLE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `DONOR_NOT_FIT` (still `registered`), `DONOR_DEFERRED` (deferred at the physical exam), `DONOR_SAMPLE_NOT_COLLECTED`, `REACTIVE_DONOR_NOT_ACCEPTABLE`, `AMENDMENT_REASON_REQUIRED`, `SEROLOGY_LOCKED` (409, bag collected).
 
 ### 6. Collection (the bag)
 
@@ -238,6 +250,7 @@ When done, `bb_cases.status = closed` (or `cancelled`).
 
 - `case_no` stays the case identifier; `invoice_no` is a search key only (a case can exist before billing, have several bills, or be rebilled).
 - Eligibility lives on `bb_case_donors` (no separate assessments table), decided twice: physical exam (`fit` / `deferred`), then serology (`eligible` / `deferred`). Both are manual physician inputs.
+- Donor serology has its own menu (not the Donor Examination form): different queue, time and place. Blood group is one combined result, and a reactive screening result blocks Accept.
 - The crossmatch is patient sample × **unit**, not × donor, so units from storage (no donor brought) are covered.
 - "Name of consultant" is the billing referral doctor; Blood Bank stores no doctor.
 - Print logs are Shared (`sh_print_logs`), not Blood Bank.

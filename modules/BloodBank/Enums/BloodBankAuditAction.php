@@ -9,4 +9,6 @@ enum BloodBankAuditAction: string
     case SampleCollected = 'bb.sample.collected';
     case DonorExamined = 'bb.donor.examined';
     case DonorExaminationAmended = 'bb.donor.examination_amended';
+    case DonorSerologyRecorded = 'bb.donor.serology_recorded';
+    case DonorSerologyAmended = 'bb.donor.serology_amended';
 }
