@@ -42,34 +42,23 @@
         .instructions td { padding: 0.25mm 0; vertical-align: top; }
         .instructions td.no { width: 9mm; text-align: right; padding-right: 2.5mm; }
 
-        .signatures { margin-top: 10mm; font-family: freesans; font-size: 10.5pt; page-break-inside: avoid; }
+        .signatures { margin-top: 15mm; font-family: freesans; font-size: 10.5pt; page-break-inside: avoid; }
         .signatures td { vertical-align: top; padding-top: 1mm; }
         .signatures td.sign { border-top: 0.8pt solid #000; }
 
-        .footer { font-family: freesans; font-size: 10pt; }
+        .footer { font-family: freesans; font-size: 8pt; text-align: right; }
     </style>
 </head>
 <body>
-<htmlpagefooter name="ctr">
-    <table class="footer"><tr>
-        <td style="width: 33%;"></td>
-        <td style="width: 34%; text-align: center;">Page <b>{PAGENO}</b> of <b>{nbpg}</b></td>
-        <td style="width: 33%;"></td>
-    </tr></table>
-</htmlpagefooter>
 <htmlpagefooter name="ctrReprint">
-    <table class="footer"><tr>
-        <td style="width: 33%;"></td>
-        <td style="width: 34%; text-align: center;">Page <b>{PAGENO}</b> of <b>{nbpg}</b></td>
-        <td style="width: 33%; text-align: right; font-size: 8pt;">Reprint</td>
-    </tr></table>
+    <div class="footer">Reprint</div>
 </htmlpagefooter>
 
 @foreach ($pages as $page)
     @if (! $loop->first)
-        <pagebreak resetpagenum="1" />
+        <pagebreak />
     @endif
-    <sethtmlpagefooter name="{{ $page['is_reprint'] ? 'ctrReprint' : 'ctr' }}" value="on" />
+    <sethtmlpagefooter name="ctrReprint" value="{{ $page['is_reprint'] ? 'on' : 'off' }}" />
 
     <table class="patient">
         <tr>
