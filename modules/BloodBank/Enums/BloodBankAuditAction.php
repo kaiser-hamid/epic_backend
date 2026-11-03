@@ -14,4 +14,10 @@ enum BloodBankAuditAction: string
     case DonorSerologyAmended = 'bb.donor.serology_amended';
     case BloodCollected = 'bb.blood.collected';
     case UnitsPrepared = 'bb.units.prepared';
+    case PatientBloodGrouped = 'bb.patient.blood_grouped';
+    case PatientBloodGroupAmended = 'bb.patient.blood_group_amended';
+    case CrossmatchRecorded = 'bb.crossmatch.recorded';
+    case DonorPostVitalsRecorded = 'bb.donor.post_vitals_recorded';
+    case BloodIssued = 'bb.blood.issued';
+    case CaseClosed = 'bb.case.closed';
 }

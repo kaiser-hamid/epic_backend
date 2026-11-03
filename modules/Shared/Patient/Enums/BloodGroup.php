@@ -17,4 +17,20 @@ enum BloodGroup: string
     {
         return ucwords(str_replace('_', ' ', $this->value));
     }
+
+    /**
+     * The ABO group alone: `A`, `B`, `AB` or `O`.
+     */
+    public function abo(): string
+    {
+        return strstr($this->value, '_', true);
+    }
+
+    /**
+     * The Rhesus (D) result as printed on reports: `Positive` or `Negative`.
+     */
+    public function rhesus(): string
+    {
+        return str_ends_with($this->value, '_POS') ? 'Positive' : 'Negative';
+    }
 }

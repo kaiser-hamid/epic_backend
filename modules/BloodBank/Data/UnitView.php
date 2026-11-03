@@ -14,7 +14,7 @@ use Modules\Shared\Printing\Models\PrintLog;
 final readonly class UnitView
 {
     /**
-     * @param  list<array{code: string, name: string, result: string|null}>|null  $screening
+     * @param  list<array{code: string, name: string, method: string|null, result: string|null}>|null  $screening
      */
     public function __construct(
         public Unit $unit,

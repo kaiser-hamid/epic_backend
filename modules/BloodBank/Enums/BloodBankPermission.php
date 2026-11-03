@@ -22,6 +22,9 @@ enum BloodBankPermission: string implements PermissionDefinition
     case UnitView = 'bb.unit.view';
     case UnitPrepare = 'bb.unit.prepare';
     case UnitLabelPrint = 'bb.unit.print_label';
+    case IssueView = 'bb.issue.view';
+    case IssueRecord = 'bb.issue.record';
+    case IssueReportPrint = 'bb.issue.print_report';
 
     public function module(): string
     {
@@ -37,6 +40,7 @@ enum BloodBankPermission: string implements PermissionDefinition
             self::SerologyView, self::SerologyRecord => 'Donor Serology',
             self::CollectionView, self::CollectionCollect, self::CollectionLabelPrint => 'Blood Collection',
             self::UnitView, self::UnitPrepare, self::UnitLabelPrint => 'Component Preparation',
+            self::IssueView, self::IssueRecord, self::IssueReportPrint => 'Blood Issue',
             default => 'Cases',
         };
     }
@@ -60,6 +64,9 @@ enum BloodBankPermission: string implements PermissionDefinition
             self::UnitView => 'Open the component preparation work list and search blood units in stock',
             self::UnitPrepare => 'Prepare whole blood or components from a bag and store them',
             self::UnitLabelPrint => 'Print and reprint component labels (a reprint needs a reason)',
+            self::IssueView => 'Open the blood issue (Compatibility Test Report) work list and case view',
+            self::IssueRecord => 'Record the patient blood group, crossmatch and post-donation vitals, and issue blood to the patient',
+            self::IssueReportPrint => 'Reprint Compatibility Test Reports (a reprint needs a reason)',
         };
     }
 }

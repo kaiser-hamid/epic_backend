@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\BloodBank\Http\Controllers\BloodCollectionController;
+use Modules\BloodBank\Http\Controllers\BloodIssueController;
 use Modules\BloodBank\Http\Controllers\CaseController;
 use Modules\BloodBank\Http\Controllers\ComponentPreparationController;
 use Modules\BloodBank\Http\Controllers\ComponentTypeController;
@@ -53,6 +54,12 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::post('cases/{case}/bags/{collection}/units', [ComponentPreparationController::class, 'prepare'])->middleware('can:prepareUnits,case')->name('cases.bags.units.store');
     Route::post('cases/{case}/unit-labels', [ComponentPreparationController::class, 'printLabels'])->middleware('can:printUnitLabels,case')->name('cases.unit-labels.store');
     Route::get('units', [ComponentPreparationController::class, 'index'])->middleware('can:bb.unit.view')->name('units.index');
+
+    Route::get('blood-issue', [BloodIssueController::class, 'lookup'])->middleware('can:bb.issue.view')->name('blood-issue.lookup');
+    Route::get('blood-issue/pending', [BloodIssueController::class, 'pending'])->middleware('can:bb.issue.view')->name('blood-issue.pending');
+    Route::get('cases/{case}/blood-issue', [BloodIssueController::class, 'show'])->middleware('can:viewBloodIssue,case')->name('cases.blood-issue.show');
+    Route::post('cases/{case}/blood-issue', [BloodIssueController::class, 'issue'])->middleware('can:issueBlood,case')->name('cases.blood-issue.store');
+    Route::post('cases/{case}/compatibility-reports', [BloodIssueController::class, 'printReports'])->middleware('can:printCompatibilityReports,case')->name('cases.compatibility-reports.store');
 
     Route::get('donors', [DonorController::class, 'index'])->middleware('can:bb.donor.view')->name('donors.index');
     Route::get('donors/lookup', [DonorController::class, 'lookup'])->middleware('can:bb.donor.view')->name('donors.lookup');

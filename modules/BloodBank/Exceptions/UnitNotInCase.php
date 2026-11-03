@@ -8,7 +8,7 @@ final class UnitNotInCase extends DomainException
 {
     public function __construct()
     {
-        parent::__construct('The unit was not prepared from a blood bag of this case.');
+        parent::__construct('The unit does not belong to this case.');
     }
 
     public function errorCode(): string

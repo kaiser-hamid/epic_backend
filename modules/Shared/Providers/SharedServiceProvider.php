@@ -36,8 +36,10 @@ use Modules\Shared\Numbering\Services\DatabaseNumberGenerator;
 use Modules\Shared\Patient\Contracts\PatientDirectory;
 use Modules\Shared\Patient\Models\PatientMaster;
 use Modules\Shared\Patient\Services\EloquentPatientDirectory;
+use Modules\Shared\Printing\Contracts\PdfRenderer;
 use Modules\Shared\Printing\Contracts\PrintLogger;
 use Modules\Shared\Printing\Services\EloquentPrintLogger;
+use Modules\Shared\Printing\Services\MpdfRenderer;
 use Modules\Shared\Rbac\Console\SyncPermissionsCommand;
 use Modules\Shared\Rbac\Contracts\AccessChecker;
 use Modules\Shared\Rbac\Enums\SharedPermission;
@@ -52,6 +54,7 @@ final class SharedServiceProvider extends ServiceProvider
      */
     public array $bindings = [
         PrintLogger::class => EloquentPrintLogger::class,
+        PdfRenderer::class => MpdfRenderer::class,
         AuditLogger::class => EloquentAuditLogger::class,
         CurrentBranch::class => SessionCurrentBranch::class,
         AccessChecker::class => BranchAccessChecker::class,

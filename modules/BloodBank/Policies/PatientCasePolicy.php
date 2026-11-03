@@ -88,4 +88,19 @@ final class PatientCasePolicy
     {
         return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::UnitLabelPrint, $case->branch_id);
     }
+
+    public function viewBloodIssue(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::IssueView, $case->branch_id);
+    }
+
+    public function issueBlood(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::IssueRecord, $case->branch_id);
+    }
+
+    public function printCompatibilityReports(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::IssueReportPrint, $case->branch_id);
+    }
 }

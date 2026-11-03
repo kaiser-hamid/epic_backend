@@ -20,6 +20,7 @@ final class BloodBankServiceProvider extends ServiceProvider
     public function boot(PermissionRegistry $permissions): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'blood-bank');
 
         Relation::morphMap([
             'bb.case' => PatientCase::class,

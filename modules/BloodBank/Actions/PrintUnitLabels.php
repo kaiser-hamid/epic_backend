@@ -7,13 +7,10 @@ use Illuminate\Support\Facades\DB;
 use Modules\BloodBank\Data\PrintUnitLabelsData;
 use Modules\BloodBank\Data\UnitView;
 use Modules\BloodBank\Enums\PrintDocumentType;
-use Modules\BloodBank\Enums\SerologyTest;
 use Modules\BloodBank\Exceptions\UnitNotInCase;
-use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\PatientCase;
-use Modules\BloodBank\Models\TestResult;
 use Modules\BloodBank\Models\Unit;
-use Modules\BloodBank\Services\DonorSerologyGate;
+use Modules\BloodBank\Services\DonorScreeningResults;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Patient\Contracts\PatientDirectory;
 use Modules\Shared\Printing\Contracts\PrintLogger;
@@ -29,7 +26,7 @@ final class PrintUnitLabels
     public function __construct(
         private readonly PrintLogger $printLogger,
         private readonly PatientDirectory $patients,
-        private readonly DonorSerologyGate $serologyGate,
+        private readonly DonorScreeningResults $screeningResults,
     ) {}
 
     /**
@@ -60,39 +57,9 @@ final class PrintUnitLabels
             return new UnitView(
                 $unit,
                 $unit->patientCase === null ? null : ($patients[$unit->patientCase->patient_master_id] ?? null),
-                $this->screening($unit->collection->caseDonor),
+                $this->screeningResults->forCaseDonor($unit->collection->caseDonor),
                 $this->printLogger->record(PrintDocumentType::ComponentLabel, $unit, $actor, $data->reprintReason),
             );
         }, $data->unitIds));
-    }
-
-    /**
-     * The donor's current screening results, in the serology form's order.
-     *
-     * @return list<array{code: string, name: string, result: string|null}>
-     */
-    private function screening(CaseDonor $caseDonor): array
-    {
-        $results = $this->serologyGate->sampleFor($caseDonor)?->results
-            ->where('is_current', true)
-            ->keyBy(fn (TestResult $result): string => $result->testDefinition->code);
-
-        $screening = [];
-
-        foreach (SerologyTest::cases() as $test) {
-            if (! $test->isScreening()) {
-                continue;
-            }
-
-            $result = $results?->get($test->value);
-
-            $screening[] = [
-                'code' => $test->value,
-                'name' => $result?->testDefinition->name ?? $test->value,
-                'result' => $result?->result_value,
-            ];
-        }
-
-        return $screening;
     }
 }
