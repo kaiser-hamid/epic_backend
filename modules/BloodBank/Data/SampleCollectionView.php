@@ -16,6 +16,7 @@ final readonly class SampleCollectionView
      * @param  list<CollectionSubject>  $subjects
      * @param  array<int, int>  $labelPrintCounts  keyed by sample id
      * @param  list<int>  $collectedSampleIds  samples drawn by the request that produced this view
+     * @param  array<int, string>  $labelCommands  label printer commands of the collected samples, keyed by sample id
      */
     public function __construct(
         public PatientCase $case,
@@ -24,5 +25,6 @@ final readonly class SampleCollectionView
         public array $subjects,
         public array $labelPrintCounts,
         public array $collectedSampleIds = [],
+        public array $labelCommands = [],
     ) {}
 }

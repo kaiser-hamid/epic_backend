@@ -16,6 +16,14 @@ interface InvoiceDirectory
     public function summaries(array $ids): array;
 
     /**
+     * The test item codes billed on each invoice, in billing order.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, list<string>> keyed by billing id; unknown ids and invoices without items are left out
+     */
+    public function testItemCodes(array $ids): array;
+
+    /**
      * The billing id for a scanned or typed invoice number, in any branch.
      */
     public function idForInvoiceNo(string $invoiceNo): ?int;

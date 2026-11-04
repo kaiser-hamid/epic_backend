@@ -13,9 +13,12 @@ use Modules\BloodBank\Models\Sample;
 use Modules\Shared\Audit\Models\AuditLog;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Models\Billing;
+use Modules\Shared\Billing\Models\BillingItem;
 use Modules\Shared\Branch\Models\Branch;
+use Modules\Shared\Patient\Enums\Gender;
 use Modules\Shared\Patient\Models\PatientMaster;
 use Modules\Shared\Printing\Models\PrintLog;
+use Modules\Shared\TestCatalog\Models\TestItem;
 
 beforeEach(function () {
     $this->branch = Branch::factory()->create();
@@ -67,10 +70,14 @@ it('returns 404 CASE_NOT_FOUND for an invoice of another branch\'s case', functi
         ->assertJson(['code' => 'CASE_NOT_FOUND']);
 });
 
-it('collects the patient and donor samples with daily sample numbers', function () {
-    $this->travelTo(now()->setDate(2026, 10, 31));
+it('collects the patient and donor samples with daily sample numbers and prints their labels', function () {
+    $this->travelTo(now()->setDate(2026, 10, 31)->setTime(20, 16));
+    PatientMaster::whereKey($this->case->patient_master_id)->update(['gender' => Gender::Male, 'age_years' => 36]);
+    foreach (['BB-WB', 'BB-PCV'] as $code) {
+        BillingItem::factory()->create(['billing_id' => $this->case->billing_id, 'test_item_id' => TestItem::factory()->create(['code' => $code])->id]);
+    }
 
-    signInToBranch($this, $this->technologist, $this->branch)
+    $response = signInToBranch($this, $this->technologist, $this->branch)
         ->postJson("/api/blood-bank/cases/{$this->case->id}/samples", ['subjects' => [
             ['subject_type' => 'patient'],
             ['subject_type' => 'donor', 'case_donor_id' => $this->donor->id],
@@ -78,12 +85,19 @@ it('collects the patient and donor samples with daily sample numbers', function 
         ->assertCreated()
         ->assertJsonCount(2, 'data.collected_sample_ids')
         ->assertJsonPath('data.subjects.0.sample.sample_no', 'S2610310001')
-        ->assertJsonPath('data.subjects.0.sample.label_print_count', 0)
+        ->assertJsonPath('data.subjects.0.sample.label_print_count', 1)
         ->assertJsonPath('data.subjects.0.is_collectable', false)
         ->assertJsonPath('data.subjects.1.sample.sample_no', 'S2610310002');
 
-    expect(Sample::where('case_donor_id', $this->donor->id)->sole()->subject_type)->toBe(SampleSubject::Donor)
-        ->and(AuditLog::where('action', BloodBankAuditAction::SampleCollected)->count())->toBe(2);
+    expect($response->json('data.subjects.0.sample.label_command'))
+        ->toContain(",0,0,S2610310001\r\n")
+        ->toContain("AB,16,83,1,1,0,0,2610310001|S2610310001\r\n")
+        ->toContain("AB,69,111,1,1,0,0E,BB-WB,BB-PCV\r\n")
+        ->toContain("AA,43,170,1,1,0,0E,M-36Y 31/10/2026 08:16 PM\r\n")
+        ->and($response->json('data.subjects.1.sample.label_command'))->toContain('|S2610310002')
+        ->and(Sample::where('case_donor_id', $this->donor->id)->sole()->subject_type)->toBe(SampleSubject::Donor)
+        ->and(AuditLog::where('action', BloodBankAuditAction::SampleCollected)->count())->toBe(2)
+        ->and(PrintLog::where('is_reprint', false)->count())->toBe(2);
 });
 
 it('collects nothing when one ticked row cannot be collected', function (Closure $setUp, string $code, int $status) {
@@ -141,7 +155,8 @@ it('prints labels and requires a reason for a reprint', function () {
         ->assertOk()
         ->assertJsonPath('data.0.sample_no', $sample->sample_no)
         ->assertJsonPath('data.0.subject.name', 'Karim Mia')
-        ->assertJsonPath('data.0.label_print.is_reprint', false);
+        ->assertJsonPath('data.0.label_print.is_reprint', false)
+        ->assertJsonPath('data.0.label_command', fn (string $command): bool => str_contains($command, ",2610310001|{$sample->sample_no}\r\n"));
 
     $print([])->assertUnprocessable()->assertJson(['code' => 'REPRINT_REASON_REQUIRED']);
 

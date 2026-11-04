@@ -11,6 +11,7 @@ use Modules\BloodBank\Data\SampleSubjectData;
 use Modules\BloodBank\Enums\BloodBankAuditAction;
 use Modules\BloodBank\Enums\CaseDonorStatus;
 use Modules\BloodBank\Enums\CaseStatus;
+use Modules\BloodBank\Enums\PrintDocumentType;
 use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SampleSubject;
 use Modules\BloodBank\Exceptions\CaseDonorNotInCase;
@@ -25,11 +26,13 @@ use Modules\BloodBank\Services\CaseSampleSubjects;
 use Modules\BloodBank\Services\SampleNumber;
 use Modules\Shared\Audit\Contracts\AuditLogger;
 use Modules\Shared\Auth\Models\User;
+use Modules\Shared\Printing\Contracts\PrintLogger;
 
 /**
  * Collects one sample per ticked row of the collection screen (the patient and/or donors of the case), each
  * with its own sample no. All or nothing: one row that cannot be collected rejects the whole request. The case
- * row is locked so a double click cannot draw two samples for the same subject.
+ * row is locked so a double click cannot draw two samples for the same subject. Each new sample's label counts as
+ * printed (first print, logged here) and the response carries its printer command for the print service.
  */
 final class CollectSamples
 {
@@ -38,6 +41,7 @@ final class CollectSamples
         private readonly SampleNumber $sampleNumber,
         private readonly AuditLogger $auditLogger,
         private readonly ShowSampleCollection $showSampleCollection,
+        private readonly PrintLogger $printLogger,
     ) {}
 
     /**
@@ -80,6 +84,8 @@ final class CollectSamples
                     ...$sample->only(['sample_no', 'case_id', 'case_donor_id', 'subject_type', 'collected_at']),
                     'case_no' => $case->case_no,
                 ]);
+
+                $this->printLogger->record(PrintDocumentType::SampleLabel, $sample, $actor);
 
                 $collectedSampleIds[] = $sample->id;
             }

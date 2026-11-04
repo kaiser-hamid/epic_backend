@@ -8,7 +8,8 @@ use Modules\BloodBank\Data\SampleView;
 
 /**
  * A sample with its case and subject; also the content of a printed label (the barcode is `sample_no`).
- * `label_print` is present only in the response to a label print.
+ * `label_print` and `label_command` (the barcode printer command to send to the print service) are present only
+ * in the response to a label print.
  *
  * @property-read SampleView $resource
  */
@@ -42,6 +43,7 @@ final class SampleResource extends JsonResource
                 'reprint_reason' => $labelPrint->reprint_reason,
                 'printed_at' => $labelPrint->printed_at->toIso8601String(),
             ]),
+            'label_command' => $this->when($labelPrint !== null, $this->resource->labelCommand),
         ];
     }
 }

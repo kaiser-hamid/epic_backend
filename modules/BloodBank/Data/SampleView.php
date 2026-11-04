@@ -6,8 +6,8 @@ use Modules\BloodBank\Models\Sample;
 use Modules\Shared\Printing\Models\PrintLog;
 
 /**
- * A sample (with its case loaded) and who it was drawn from. `labelPrint` is set when the label was just
- * printed. Rendered by SampleResource.
+ * A sample (with its case loaded) and who it was drawn from. `labelPrint` and `labelCommand` (the printer
+ * command for the label) are set when the label was just printed. Rendered by SampleResource.
  */
 final readonly class SampleView
 {
@@ -15,5 +15,6 @@ final readonly class SampleView
         public Sample $sample,
         public SubjectView $subject,
         public ?PrintLog $labelPrint = null,
+        public ?string $labelCommand = null,
     ) {}
 }

@@ -59,8 +59,10 @@ Sample Collection APIs (permissions `bb.sample.view` / `bb.sample.collect` / `bb
 |---|---|
 | `GET sample-collection?invoice_no=` | Collection tab: invoice scan → case, patient, invoice, one row per subject (patient, then donors) with its latest sample, `is_collectable`, `label_print_count`. The invoice no is used until the vendor system is replaced; the case no lookup is kept commented out (`SampleCollectionLookupData`, `ShowSampleCollection`). |
 | `GET cases/{case}/sample-collection` | Same screen, opened from the Pending tab or a case. |
-| `POST cases/{case}/samples` | "Collect": `subjects: [{subject_type, case_donor_id}]`, optional `collected_at`. All or nothing; returns the screen plus `collected_sample_ids` (201). |
-| `POST cases/{case}/sample-labels` | "Label" / "Label (All)": `sample_ids`, `reprint_reason` (required for a reprint). Returns label content per sample. |
+| `POST cases/{case}/samples` | "Collect": `subjects: [{subject_type, case_donor_id}]`, optional `collected_at`. All or nothing; returns the screen plus `collected_sample_ids` (201). The new samples' labels are logged as printed (first print) and each of those samples carries `label_command` for the print service; printing them again is a reprint. |
+| `POST cases/{case}/sample-labels` | "Label" / "Label (All)": `sample_ids`, `reprint_reason` (required for a reprint). Returns label content per sample with `label_command`. |
+
+Sample label: `label_command` is the GoDEX EZPL command from `resources/label/bb_barcode_label.ezpx` (Shared `LabelRenderer`, CRLF line endings), each `^Vxx` replaced with its value cut to the declared length; text fields of centred variables (`jc..`) get the x that centres the value on the label, measured with the font's character widths, dropping to a smaller font when too wide: `V00` barcode = sample no; `V01` `{invoice no without its 2-letter branch code}|{sample no}` (the additional donor's own invoice, else the case's); `V02` the test item codes billed on that invoice; `V03` `{M|F|O}-{age}Y {print time d/m/Y h:i A}`.
 | `GET sample-collection/pending` | Pending tab: open cases still waiting for a sample from the patient or a donor who was not deferred. |
 | `GET samples` | Collected tab and barcode scan (`filter[sample_no]`, `filter[case_no]`, `filter[status]`, `filter[subject_type]`, `filter[collected_from/to]`). |
 

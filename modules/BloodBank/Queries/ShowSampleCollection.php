@@ -4,10 +4,12 @@ namespace Modules\BloodBank\Queries;
 
 use Modules\BloodBank\Data\SampleCollectionLookupData;
 use Modules\BloodBank\Data\SampleCollectionView;
+use Modules\BloodBank\Data\SampleView;
 use Modules\BloodBank\Enums\PrintDocumentType;
 use Modules\BloodBank\Exceptions\CaseNotFound;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Services\CaseSampleSubjects;
+use Modules\BloodBank\Services\SampleLabelCommands;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
 use Modules\Shared\Patient\Contracts\PatientDirectory;
@@ -25,6 +27,7 @@ final class ShowSampleCollection
         private readonly PatientDirectory $patients,
         private readonly CaseSampleSubjects $sampleSubjects,
         private readonly PrintLogger $printLogger,
+        private readonly SampleLabelCommands $labelCommands,
     ) {}
 
     /**
@@ -36,7 +39,7 @@ final class ShowSampleCollection
     }
 
     /**
-     * @param  list<int>  $collectedSampleIds  samples just drawn by CollectSamples
+     * @param  list<int>  $collectedSampleIds  samples just drawn by CollectSamples; their label printer commands are included
      */
     public function get(PatientCase $case, array $collectedSampleIds = []): SampleCollectionView
     {
@@ -45,9 +48,14 @@ final class ShowSampleCollection
         $subjects = $this->sampleSubjects->of($case, $patient);
 
         $labelPrintCounts = [];
+        $collected = [];
         foreach ($subjects as $subject) {
             if ($subject->sample !== null) {
                 $labelPrintCounts[$subject->sample->id] = $this->printLogger->printCount(PrintDocumentType::SampleLabel, $subject->sample);
+
+                if (in_array($subject->sample->id, $collectedSampleIds, true)) {
+                    $collected[] = new SampleView($subject->sample, $subject->subject);
+                }
             }
         }
 
@@ -58,6 +66,7 @@ final class ShowSampleCollection
             $subjects,
             $labelPrintCounts,
             $collectedSampleIds,
+            $this->labelCommands->for($case, $collected),
         );
     }
 
