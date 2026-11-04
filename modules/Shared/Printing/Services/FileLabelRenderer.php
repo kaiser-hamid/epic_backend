@@ -22,6 +22,12 @@ final class FileLabelRenderer implements LabelRenderer
     private const int SIDE_MARGIN_DOTS = 4;
 
     /**
+     * The printer's physical print origin sits about 2 mm left of the media edge, so text centred on the label
+     * width lands 2 mm left of the media centre; this shifts it back (measured on the label printer).
+     */
+    private const int CENTRE_OFFSET_DOTS = 16;
+
+    /**
      * Point size of each internal font.
      */
     private const array FONT_POINTS = ['A' => 6, 'B' => 8, 'C' => 10, 'D' => 12, 'E' => 14, 'F' => 18, 'G' => 24, 'H' => 30];
@@ -94,7 +100,7 @@ final class FileLabelRenderer implements LabelRenderer
             $width = $this->textWidth($value, $font, (int) $xMultiplier, (int) $gap);
         }
 
-        $x = max(0, intdiv($labelWidth - $width, 2));
+        $x = max(0, intdiv($labelWidth - $width, 2) + self::CENTRE_OFFSET_DOTS);
 
         return "A{$font},{$x},{$y},{$xMultiplier},{$yMultiplier},{$gap},{$rotation},{$value}";
     }

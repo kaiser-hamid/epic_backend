@@ -91,9 +91,9 @@ it('collects the patient and donor samples with daily sample numbers and prints 
 
     expect($response->json('data.subjects.0.sample.label_command'))
         ->toContain(",0,0,S2610310001\r\n")
-        ->toContain("AB,16,83,1,1,0,0,2610310001|S2610310001\r\n")
-        ->toContain("AB,69,111,1,1,0,0E,BB-WB,BB-PCV\r\n")
-        ->toContain("AA,43,170,1,1,0,0E,M-36Y 31/10/2026 08:16 PM\r\n")
+        ->toContain("AB,32,83,1,1,0,0,2610310001|S2610310001\r\n")
+        ->toContain("AB,85,111,1,1,0,0E,BB-WB,BB-PCV\r\n")
+        ->toContain("AA,59,170,1,1,0,0E,M-36Y 31/10/2026 08:16 PM\r\n")
         ->and($response->json('data.subjects.1.sample.label_command'))->toContain('|S2610310002')
         ->and(Sample::where('case_donor_id', $this->donor->id)->sole()->subject_type)->toBe(SampleSubject::Donor)
         ->and(AuditLog::where('action', BloodBankAuditAction::SampleCollected)->count())->toBe(2)
