@@ -19,7 +19,7 @@ use Modules\Shared\Printing\Contracts\LabelRenderer;
  * - `V00` (barcode): the bag no, or the unit no
  * - `V01`, `V02`: collection and expiry date (`d/m/Y`); a collected bag expires as whole blood would
  * - `V03` to `V05`: the patient's name, age (`25Y`) and gender (`M`); blank for a unit not reserved for a patient
- * - `V06`: the donor's blood group (`O POSITIVE`)
+ * - `V06`: the donor's blood group (`A+ve`, `O-ve`)
  * - `V07`: the component code (`WB`, `PLASMA`, `PLATELET`)
  * - `V08`: the donor's name
  * - `V09`, `V10`: the referring doctor and number of the case's invoice (the donor's own when billed separately)
@@ -132,7 +132,7 @@ final class BagLabelCommands
 
     private function bloodGroup(?BloodGroup $bloodGroup): string
     {
-        return $bloodGroup === null ? '' : $bloodGroup->abo().' '.strtoupper($bloodGroup->rhesus());
+        return $bloodGroup === null ? '' : $bloodGroup->abo().($bloodGroup->rhesus() === 'Positive' ? '+ve' : '-ve');
     }
 
     private function date(CarbonInterface $date): string

@@ -136,16 +136,11 @@ it('prints the bag label with donor, case and patient details and requires a rea
         ->assertJsonPath('data.0.label_print.is_reprint', false);
 
     expect($response->json('data.0.label_command'))
-        ->toContain('BA3,42,63,2,5,64,0,3,B2611020001
-')
-        ->toContain(',0E,Rahim Uddin
-')
-        ->toContain(',0E,Karim Mia
-')
-        ->toContain(',0E,WB
-')
-        ->toContain(',0E,NB2611020001
-');
+        ->toContain('BA3,42,63,2,5,64,0,3,B2611020001')
+        ->toContain(',0E,Rahim Uddin')
+        ->toContain(',0E,Karim Mia')
+        ->toContain(',0E,WB')
+        ->toContain(',0E,NB2611020001');
 
     $print()->assertUnprocessable()->assertJson(['code' => 'REPRINT_REASON_REQUIRED']);
 
