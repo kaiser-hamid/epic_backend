@@ -9,8 +9,8 @@ use Modules\BloodBank\Data\UnitView;
 /**
  * A blood unit with its component, storage location and source bag; also the content of a component label (the
  * barcode is `unit_no`). `reserved_for` is the case and patient the unit is reserved for or issued to, null for
- * stock. `screening` (the donor's screening results) and `label_print` are present only in the response to a
- * label print.
+ * stock. `screening` (the donor's screening results), `label_print` and `label_command` (the barcode printer
+ * command to send to the print service) are present only in the response to a label print.
  *
  * @property-read UnitView $resource
  */
@@ -60,6 +60,7 @@ final class UnitResource extends JsonResource
                 'reprint_reason' => $labelPrint->reprint_reason,
                 'printed_at' => $labelPrint->printed_at->toIso8601String(),
             ]),
+            'label_command' => $this->when($labelPrint !== null, $this->resource->labelCommand),
         ];
     }
 }

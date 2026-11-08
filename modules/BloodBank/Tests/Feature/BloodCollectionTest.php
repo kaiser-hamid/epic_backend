@@ -125,7 +125,7 @@ it('prints the bag label with donor, case and patient details and requires a rea
     $print = fn (array $payload = []) => signInToBranch($this, $this->phlebotomist, $this->branch)
         ->postJson("/api/blood-bank/cases/{$this->case->id}/bag-labels", ['collection_ids' => [$collection->id], ...$payload]);
 
-    $print()
+    $response = $print()
         ->assertOk()
         ->assertJsonPath('data.0.bag_no', 'B2611020001')
         ->assertJsonPath('data.0.donor.donor_no', 'D2611000001')
@@ -134,6 +134,18 @@ it('prints the bag label with donor, case and patient details and requires a rea
         ->assertJsonPath('data.0.patient.patient_no', 'P2611020001')
         ->assertJsonPath('data.0.patient.name', 'Rahim Uddin')
         ->assertJsonPath('data.0.label_print.is_reprint', false);
+
+    expect($response->json('data.0.label_command'))
+        ->toContain('BA3,42,63,2,5,64,0,3,B2611020001
+')
+        ->toContain(',0E,Rahim Uddin
+')
+        ->toContain(',0E,Karim Mia
+')
+        ->toContain(',0E,WB
+')
+        ->toContain(',0E,NB2611020001
+');
 
     $print()->assertUnprocessable()->assertJson(['code' => 'REPRINT_REASON_REQUIRED']);
 

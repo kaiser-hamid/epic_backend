@@ -8,7 +8,8 @@ use Modules\Shared\Printing\Models\PrintLog;
 
 /**
  * A blood bag (with `caseDonor.donor`, `caseDonor.patientCase` and `collector` loaded) and the case's patient;
- * also the content of a bag label. `labelPrint` is set when the label was just printed. Rendered by BagResource.
+ * also the content of a bag label. `labelPrint` and `labelCommand` (the printer command for the label) are set when
+ * the label was just printed. Rendered by BagResource.
  */
 final readonly class BagView
 {
@@ -16,5 +17,6 @@ final readonly class BagView
         public Collection $collection,
         public ?PatientSummary $patient,
         public ?PrintLog $labelPrint = null,
+        public ?string $labelCommand = null,
     ) {}
 }

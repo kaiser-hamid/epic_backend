@@ -222,7 +222,7 @@ it('prints the component label with the donor screening and requires a reason fo
     $print = fn (array $payload = []) => signInToBranch($this, $this->technologist, $this->branch)
         ->postJson("/api/blood-bank/cases/{$this->case->id}/unit-labels", ['unit_ids' => [$unit->id], ...$payload]);
 
-    $print()
+    $response = $print()
         ->assertOk()
         ->assertJsonPath('data.0.unit_no', 'BC2611020001')
         ->assertJsonPath('data.0.blood_group', 'B_POS')
@@ -235,6 +235,16 @@ it('prints the component label with the donor screening and requires a reason fo
         ->assertJsonPath('data.0.screening.1.result', 'not_found')
         ->assertJsonPath('data.0.reserved_for.patient_no', 'P2611020001')
         ->assertJsonPath('data.0.label_print.is_reprint', false);
+
+    expect($response->json('data.0.label_command'))
+        ->toContain('BA3,42,63,2,5,64,0,3,BC2611020001
+')
+        ->toContain(',0E,Rahim Uddin
+')
+        ->toContain(',0E,B POSITIVE
+')
+        ->toContain(',0E,PCV
+');
 
     $print()->assertUnprocessable()->assertJson(['code' => 'REPRINT_REASON_REQUIRED']);
 

@@ -169,7 +169,7 @@ Blood Collection APIs (permissions `bb.collection.view` / `bb.collection.collect
 | `GET blood-collection?invoice_no=` or `?donor_no=` | Collection tab: an invoice scan shows the case with every donor; a donor no scan shows only that donor, on the latest open case of this branch they are on. Each row has `is_collectable` and `collection` (the bag, with `label_print_count`). |
 | `GET cases/{case}/blood-collection` | Same screen, opened from the Pending tab or a case. |
 | `POST cases/{case}/donors/{caseDonor}/collection` | "Collect": `volume_ml` (50–600), optional `notes`, `collected_at`. Returns the screen plus `collected_collection_id` (201); the frontend then prints the label. |
-| `POST cases/{case}/bag-labels` | "Label" / "Label (All)": `collection_ids`, `reprint_reason` (required for a reprint). Returns the label content per bag. |
+| `POST cases/{case}/bag-labels` | "Label" / "Label (All)": `collection_ids`, `reprint_reason` (required for a reprint). Returns the label content per bag with `label_command`. |
 | `GET blood-collection/pending` | Pending tab: open cases with an `eligible` donor (cleared to donate, no bag yet). |
 | `GET blood-collections` | Collected tab and bag barcode scan (`filter[bag_no]`, `filter[case_no]`, `filter[donor_no]`, `filter[status]`, `filter[collected_from/to]`). |
 
@@ -198,10 +198,12 @@ Component Preparation APIs (permissions `bb.unit.view` / `bb.unit.prepare` / `bb
 | `GET component-preparation?bag_no=` | Preparation tab: bag scan → bag (donor, case, patient), billed components with `held_count` and `needed_count`, the bag's units with `label_print_count`, `can_prepare`. |
 | `GET cases/{case}/bags/{collection}/component-preparation` | Same screen, opened from the Pending tab. |
 | `POST cases/{case}/bags/{collection}/units` | "Prepare": `units: [{component_type_id, storage_location_id?, volume_ml?, for_case}]` (1–6), optional `prepared_at` (ISO 8601; `toISOString()` with milliseconds and `Z` is accepted and converted to Asia/Dhaka). Returns the screen plus `prepared_unit_ids` (201); the frontend then prints the labels. |
-| `POST cases/{case}/unit-labels` | "Label" / "Label (All)": `unit_ids`, `reprint_reason` (required for a reprint). Returns the label content per unit. |
+| `POST cases/{case}/unit-labels` | "Label" / "Label (All)": `unit_ids`, `reprint_reason` (required for a reprint). Returns the label content per unit with `label_command`. |
 | `GET component-preparation/pending` | Pending tab: collected bags with no units yet, oldest first. |
 | `GET units` | Units tab and unit barcode scan (`filter[unit_no]`, `filter[bag_no]`, `filter[case_no]`, `filter[component_type_id]`, `filter[blood_group]`, `filter[status]`, `filter[storage_location_id]`, `filter[expires_before]`), soonest expiry first. |
 | `GET storage-locations` | Location picker: the branch's active locations. |
+
+Bag and component label: `label_command` (from `bag-labels` and `unit-labels`) is the GoDEX EZPL command from `resources/label/bb_bag_label.ezpx` (`BagLabelCommands`). Variables: `V00` bag no (unit no on a component), `V01` collection date, `V02` expiry date (a collected bag expires as WB would), `V03`-`V05` patient name/age/gender (blank for a stock unit), `V06` donor blood group, `V07` component code, `V08` donor name, `V09` referring doctor, `V10` invoice no.
 
 Error codes: `BAG_NOT_FOUND` (404), `CASE_NOT_OPEN`, `COLLECTION_NOT_IN_CASE`, `BAG_CANCELLED`, `BAG_ALREADY_PREPARED` (409), `COMPONENT_NOT_NEEDED` (for the patient but not billed, or more than billed), `COMPONENT_REQUIREMENT_NOT_MET` (the patient does not get what the case still needs), `UNIT_NOT_IN_CASE`, `REPRINT_REASON_REQUIRED`, `VALIDATION_FAILED` (whole blood with components, inactive component type, stock unit without a location, another branch's or inactive location, `prepared_at` before collection).
 

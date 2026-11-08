@@ -9,7 +9,8 @@ use Modules\Shared\Printing\Models\PrintLog;
 /**
  * A unit (with `componentType`, `storageLocation`, `collection.caseDonor.donor` and `patientCase` loaded) and the
  * patient of the case it is reserved for or issued to. On a label print, `screening` holds the donor's screening
- * results and `labelPrint` the print just recorded. Rendered by UnitResource.
+ * results, `labelPrint` the print just recorded and `labelCommand` the printer command for the label. Rendered by
+ * UnitResource.
  */
 final readonly class UnitView
 {
@@ -21,5 +22,6 @@ final readonly class UnitView
         public ?PatientSummary $patient,
         public ?array $screening = null,
         public ?PrintLog $labelPrint = null,
+        public ?string $labelCommand = null,
     ) {}
 }
