@@ -12,12 +12,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\BloodBank\Database\Factories\DonorFactory;
+use Modules\BloodBank\Enums\Religion;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Patient\Enums\BloodGroup;
 use Modules\Shared\Patient\Enums\Gender;
+use Modules\Shared\Patient\Enums\MaritalStatus;
 
 #[Table('bb_donors')]
-#[Fillable(['donor_no', 'name', 'date_of_birth', 'age', 'gender', 'blood_group', 'phone', 'address', 'national_id', 'is_regular_volunteer', 'created_by'])]
+#[Fillable(['donor_no', 'name', 'father_name', 'date_of_birth', 'age', 'gender', 'marital_status', 'religion', 'blood_group', 'phone', 'address', 'national_id', 'occupation', 'is_regular_volunteer', 'created_by'])]
 #[UseFactory(DonorFactory::class)]
 final class Donor extends Model
 {
@@ -32,6 +34,8 @@ final class Donor extends Model
         return [
             'date_of_birth' => 'date',
             'gender' => Gender::class,
+            'marital_status' => MaritalStatus::class,
+            'religion' => Religion::class,
             'blood_group' => BloodGroup::class,
             'is_regular_volunteer' => 'boolean',
         ];

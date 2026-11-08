@@ -3,8 +3,10 @@
 namespace Modules\BloodBank\Data;
 
 use Carbon\CarbonImmutable;
+use Modules\BloodBank\Enums\Religion;
 use Modules\Shared\Patient\Enums\BloodGroup;
 use Modules\Shared\Patient\Enums\Gender;
+use Modules\Shared\Patient\Enums\MaritalStatus;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Attributes\Validation\BeforeOrEqual;
 use Spatie\LaravelData\Attributes\Validation\Between;
@@ -37,6 +39,12 @@ final class RegisterDonorData extends Data
         public ?string $address = null,
         #[Max(30)]
         public ?string $nationalId = null,
+        #[Max(255)]
+        public ?string $fatherName = null,
+        public ?MaritalStatus $maritalStatus = null,
+        public ?Religion $religion = null,
+        #[Max(100)]
+        public ?string $occupation = null,
         public ?bool $isRegularVolunteer = null,
     ) {}
 }

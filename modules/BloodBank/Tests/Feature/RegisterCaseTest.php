@@ -65,7 +65,11 @@ it('bills a new patient and opens the case with components and donors from one f
         'components' => [['component_type_id' => $pcv->id, 'quantity' => 2]],
         'donors' => [
             ['donor_id' => $returningDonor->id],
-            ['donor' => ['name' => 'Karim Mia', 'age' => 28, 'blood_group' => 'O_POS', 'is_regular_volunteer' => true]],
+            ['donor' => [
+                'name' => 'Karim Mia', 'father_name' => 'Abdul Mia', 'age' => 28, 'blood_group' => 'O_POS',
+                'marital_status' => 'married', 'religion' => 'islam', 'occupation' => 'Driver',
+                'is_regular_volunteer' => true,
+            ]],
         ],
     ]);
 
@@ -81,7 +85,11 @@ it('bills a new patient and opens the case with components and donors from one f
         ->assertJsonPath('data.donors.0.sequence_no', 1)
         ->assertJsonPath('data.donors.0.donor.id', $returningDonor->id)
         ->assertJsonPath('data.donors.1.sequence_no', 2)
-        ->assertJsonPath('data.donors.1.donor.donor_no', 'D2610000001');
+        ->assertJsonPath('data.donors.1.donor.donor_no', 'D2610000001')
+        ->assertJsonPath('data.donors.1.donor.father_name', 'Abdul Mia')
+        ->assertJsonPath('data.donors.1.donor.marital_status', 'married')
+        ->assertJsonPath('data.donors.1.donor.religion', 'islam')
+        ->assertJsonPath('data.donors.1.donor.occupation', 'Driver');
 
     $case = PatientCase::sole();
     expect($case->branch_id)->toBe($this->branch->id)
@@ -132,6 +140,8 @@ it('returns 422 VALIDATION_FAILED and saves nothing for an invalid form', functi
 
         return ['donors' => [['donor_id' => $donor->id], ['donor_id' => $donor->id]]];
     }, 'donors.0.donor_id'],
+    'donor with an unknown religion' => [fn () => ['donors' => [['donor' => ['name' => 'Karim Mia', 'age' => 28, 'religion' => 'pastafarian']]]], 'donors.0.donor.religion'],
+    'donor with an unknown marital status' => [fn () => ['donors' => [['donor' => ['name' => 'Karim Mia', 'age' => 28, 'marital_status' => 'complicated']]]], 'donors.0.donor.marital_status'],
     'new donor without age or date of birth' => [fn () => ['donors' => [['donor' => ['name' => 'Karim Mia']]]], 'donors.0.donor.age'],
 ]);
 
