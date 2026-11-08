@@ -26,7 +26,7 @@ use Modules\Shared\Auth\Models\User;
  *  - `patient`, `invoice`; `patient_sample` (null until drawn) with its current `blood_group` (null until entered).
  *  - `donors` in sequence order: decision, `invoice_no` (an added donor's own bill), `examination` with `pre` and
  *    `post` vitals (`post` null until recorded), `serology` (null until saved), `bag` (null until collected) and
- *    `needs_post_vitals` (the Issue form must send this donor's vitals when one of its units is issued).
+ *    `needs_post_vitals` (this donor's vitals are not recorded yet; the Issue form may send them, but they are optional).
  *  - `units` reserved for or issued to the case, each with its current `crossmatch` (null until issued),
  *    `compatibility_report_print_count` and `can_issue`.
  * "Issue Blood" is enabled while `can_issue`.

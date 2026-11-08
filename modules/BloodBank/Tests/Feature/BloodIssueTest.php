@@ -98,7 +98,7 @@ it('issues the units, records the crossmatch and vitals, closes the case and ret
     expect($response->getContent())->toStartWith('%PDF');
 
     $this->unit->refresh();
-    expect($this->unit->status)->toBe(UnitStatus::Issued)
+    expect($this->unit->refresh()->status)->toBe(UnitStatus::Issued)
         ->and($this->unit->case_id)->toBe($this->case->id)
         ->and($this->unit->storage_location_id)->toBeNull();
 
@@ -164,7 +164,6 @@ it('issues nothing when a rule is broken', function (Closure $setup, Closure $pa
         fn () => ($this->payload)(['units' => [['unit_id' => $this->unit->id, 'major_result' => 'compatible', 'minor_result' => 'incompatible']]]),
         422, 'CROSSMATCH_INCOMPATIBLE',
     ],
-    'post-donation vitals missing' => [fn () => null, fn () => ($this->payload)(['post_donation' => []]), 422, 'POST_DONATION_VITALS_REQUIRED'],
     'unit not reserved' => [fn () => $this->unit->update(['status' => UnitStatus::Available]), fn () => ($this->payload)(), 409, 'UNIT_NOT_RESERVED'],
     'unit of another case' => [fn () => $this->unit->update(['case_id' => PatientCase::factory()->create()->id]), fn () => ($this->payload)(), 422, 'UNIT_NOT_IN_CASE'],
     'unit expired' => [fn () => $this->unit->update(['expires_at' => now()->subMinute()]), fn () => ($this->payload)(), 422, 'UNIT_EXPIRED'],
@@ -233,4 +232,11 @@ it('refuses a case of another branch', function () {
 
     ($this->issue)(($this->payload)())->assertForbidden()->assertJson(['code' => 'FORBIDDEN']);
     expect($this->unit->refresh()->status)->toBe(UnitStatus::Reserved);
+});
+
+it('issues the units without post-donation vitals, leaving them unrecorded', function () {
+    ($this->issue)(($this->payload)(['post_donation' => []]))->assertCreated();
+
+    expect($this->unit->refresh()->status)->toBe(UnitStatus::Issued)
+        ->and($this->screening->refresh()->post_recorded_at)->toBeNull();
 });

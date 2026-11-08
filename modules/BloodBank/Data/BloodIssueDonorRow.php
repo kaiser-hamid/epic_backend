@@ -8,7 +8,7 @@ use Modules\BloodBank\Models\Sample;
 
 /**
  * One case donor on the blood issue screen: the donor (with `donor`, `assessor` and `screening` loaded), the
- * donor sample with its serology results, the bag, and whether the post-donation vitals still have to be entered.
+ * donor sample with its serology results, the bag, and whether the post-donation vitals are not recorded yet (they are optional on the issue form).
  */
 final readonly class BloodIssueDonorRow
 {

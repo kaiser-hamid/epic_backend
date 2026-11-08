@@ -22,7 +22,6 @@ use Modules\BloodBank\Exceptions\CaseNotOpen;
 use Modules\BloodBank\Exceptions\CrossmatchIncompatible;
 use Modules\BloodBank\Exceptions\PatientSampleNotCollected;
 use Modules\BloodBank\Exceptions\PostDonationVitalsRecorded;
-use Modules\BloodBank\Exceptions\PostDonationVitalsRequired;
 use Modules\BloodBank\Exceptions\UnitExpired;
 use Modules\BloodBank\Exceptions\UnitNotInCase;
 use Modules\BloodBank\Exceptions\UnitNotReserved;
@@ -44,7 +43,7 @@ use Modules\Shared\Printing\Data\PdfDocument;
 /**
  * "Issue Blood": in one transaction, records what the Compatibility Test Report needs and hands the units over.
  *  1. The patient's blood group on the patient sample (versioned; a change needs an amendment reason).
- *  2. Post-donation vitals of the donors whose blood is issued, where not recorded yet (required for them).
+ *  2. Post-donation vitals of donors, where sent and not recorded yet (optional: blood can be issued without them).
  *  3. A crossmatch per unit (patient sample × unit), signed by the chosen Medical Technologist and Physician.
  *     Only a unit compatible on both major and minor can be issued; the physician's call, never automatic.
  *  4. Each unit goes reserved → issued and leaves its storage location, with a movement row.
@@ -71,7 +70,6 @@ final class IssueBlood
      * @throws PatientSampleNotCollected
      * @throws AmendmentReasonRequired
      * @throws CaseDonorNotInCase
-     * @throws PostDonationVitalsRequired
      * @throws PostDonationVitalsRecorded
      * @throws ValidationException
      */
@@ -201,14 +199,13 @@ final class IssueBlood
     }
 
     /**
-     * Every donor whose blood is issued must have post-donation vitals, recorded earlier or sent now. Vitals can
-     * be sent for any collected donor of the case still missing them, but never overwrite recorded ones.
+     * Post-donation vitals are optional: blood is issued whether or not they are recorded. Vitals can be sent for
+     * any collected donor of the case still missing them, but never overwrite recorded ones.
      *
      * @param  EloquentCollection<int, Unit>  $units
      *
      * @throws CaseDonorNotInCase
      * @throws PostDonationVitalsRecorded
-     * @throws PostDonationVitalsRequired
      * @throws ValidationException
      */
     private function recordPostDonationVitals(User $actor, PatientCase $case, EloquentCollection $units, IssueBloodData $data): void
@@ -223,12 +220,6 @@ final class IssueBlood
             ->get()
             ->keyBy('id')
             ->union($issuedDonors);
-
-        foreach ($issuedDonors as $caseDonor) {
-            if ($this->issueGate->needsPostVitals($caseDonor) && ! $entries->has($caseDonor->id)) {
-                throw new PostDonationVitalsRequired;
-            }
-        }
 
         foreach ($data->postDonation as $index => $entry) {
             $caseDonor = $donors->get($entry->caseDonorId) ?? throw new CaseDonorNotInCase;

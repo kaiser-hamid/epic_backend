@@ -43,7 +43,7 @@ All APIs are under `/api/blood-bank`.
 | **Add donor** (Cases page button: invoice lookup, then one donor per save, billed separately) | 4.3 | Done | `GET add-donor?invoice_no=`, `POST cases/{case}/donors` |
 | **Settings → Test Definitions** | 0 | Next | |
 | **Blood Collection** (tabs: Collection, Pending, Collected; bag + bag label) | 6.1–6.2, 6.4 | Done | see step 6 |
-| **Post-donation vitals** | 6.3 | Done | on the Blood Issue form (step 9) |
+| **Post-donation vitals** | 6.3 | Done | optional, on the Blood Issue form (step 9) |
 | Bag stock issue | 6.5 | Later | |
 | **Component Preparation** (tabs: Preparation, Pending, Units; whole blood or components, storage, component labels) | 7 | Done | see step 7 |
 | **Blood Issue / Compatibility Test Report** (patient blood group, crossmatch per unit, post-donation vitals, issue, supply time, close case, report PDF) | 3.3, 6.3, 8, 9 | Done | see step 9 |
@@ -158,7 +158,7 @@ Serology rules (`DonorSerologyGate`): the case is `open` and the donor belongs t
 
 1. Draw blood from an eligible donor → `bb_collections`: `bag_no` (printed on the bag label; `B{yyMMdd}{0001}`, global, daily reset), `case_donor_id`, `volume_ml`, `collected_at/by`, `approved_by` (not set yet), `status = collected`, `notes`. One bag per case donor.
 2. `bb_case_donors.status = collected`. Physical exam and serology are locked from here on.
-3. About 15 minutes after donation → fill the post-donation columns on the same `bb_donor_screenings` row: `post_pulse_bpm`, `post_bp_systolic` / `post_bp_diastolic`, `post_temperature_f`, `post_recorded_by/at`. Entered on the Blood Issue form (step 9) if not recorded yet; required there for every donor whose blood is issued, and never overwritten.
+3. About 15 minutes after donation → fill the post-donation columns on the same `bb_donor_screenings` row: `post_pulse_bpm`, `post_bp_systolic` / `post_bp_diastolic`, `post_temperature_f`, `post_recorded_by/at`. Optionally entered on the Blood Issue form (step 9) if not recorded yet; blood can be issued without them, and recorded vitals are never overwritten.
 4. Print bag label → `sh_print_logs` (`bb.bag_label`, `printable_type = bb.collection`). The label shows the bag no, donor no and case no as barcodes, plus donor name, age, gender, blood group, patient no, name, age, gender, blood group, volume, collection time and collector.
 5. Bag used up → `bb_consumable_transactions` (`type = issued`), see step 10. (Later.)
 
@@ -258,7 +258,7 @@ When done, `bb_cases.status = closed` (or `cancelled`).
 **Blood Issue / Compatibility Test Report menu** (permissions `bb.issue.view` / `bb.issue.record` / `bb.issue.print_report`, branch scoped). One form records what the report needs and hands the units over. "Issue Blood" (`IssueBlood`) is one transaction:
 
 1. Patient blood group → `bb_test_results` (`BLOOD_GROUP`) on the latest non-rejected patient sample. It is required until one exists; an unchanged value is left alone, and a change is a new version with `amendment_reason`. `tested_by` is the chosen Medical Technologist. The sample moves to `tested`. `sh_patient_master.blood_group` is not touched (Shared owns it).
-2. Post-donation vitals (step 6.3) for every donor whose unit is issued, unless already recorded.
+2. Post-donation vitals (step 6.3), optional: recorded for the donors sent, unless already recorded. Issuing without them is allowed.
 3. One `bb_crossmatches` row per unit: `tested_by` = Medical Technologist, `reviewed_by` = Physician (both picked with `GET /api/staff/lookup`, not necessarily the user), `status = reviewed`. Both major and minor must be `compatible`, otherwise nothing is saved. A unit with an earlier current crossmatch gets a new version and needs `amendment_reason`.
 4. Each unit goes `reserved → issued`; `storage_location_id` is cleared and a movement row is written.
 5. `bb_cases.supplied_at = now()` (the latest issue). The case is `closed` when every `bb_case_components` line has as many issued units as its `quantity`.
@@ -271,10 +271,10 @@ Audit: `bb.patient.blood_grouped` / `bb.patient.blood_group_amended` (on `bb.sam
 | `GET blood-issue?invoice_no=` or `?donor_no=` | Scan → the whole case: `case` (with `supplied_at`, components with `reserved_count` / `issued_count` / `remaining_count`), `patient`, `invoice`, `patient_sample` with its current `blood_group`, every donor (decision, `invoice_no`, `examination` with `pre` / `post` vitals, `serology`, `bag`, `needs_post_vitals`), every unit reserved for or issued to the case (with `crossmatch`, `compatibility_report_print_count`, `can_issue`), and `can_issue`. A donor no opens the latest case of this branch the donor is on, closed ones included (for reprints). |
 | `GET cases/{case}/blood-issue` | Same screen, opened from the Pending tab or a case. |
 | `GET blood-issue/pending` | Pending tab: open cases with a `reserved` unit. |
-| `POST cases/{case}/blood-issue` | "Issue Blood": `technologist_id`, `physician_id`, `units: [{unit_id, major_result, minor_result, remarks?}]` (1–20), `patient_blood_group` (required until recorded), `amendment_reason`, `post_donation: [{case_donor_id, pulse_bpm, bp_systolic, bp_diastolic, temperature_f}]`. Returns `application/pdf` (201). |
+| `POST cases/{case}/blood-issue` | "Issue Blood": `technologist_id`, `physician_id`, `units: [{unit_id, major_result, minor_result, remarks?}]` (1–20), `patient_blood_group` (required until recorded), `amendment_reason`, optional `post_donation: [{case_donor_id, pulse_bpm, bp_systolic, bp_diastolic, temperature_f}]` (may be omitted or empty). Returns `application/pdf` (201). |
 | `POST cases/{case}/compatibility-reports` | Reprint: `unit_ids`, `reprint_reason` (required for a reprint). Returns `application/pdf` (200) with a "REPRINT" mark. |
 
-Error codes (JSON as usual): `CASE_NOT_OPEN`, `UNIT_NOT_IN_CASE`, `UNIT_NOT_RESERVED` (409), `UNIT_EXPIRED`, `CROSSMATCH_INCOMPATIBLE`, `PATIENT_SAMPLE_NOT_COLLECTED`, `AMENDMENT_REASON_REQUIRED`, `CASE_DONOR_NOT_IN_CASE`, `POST_DONATION_VITALS_REQUIRED`, `POST_DONATION_VITALS_RECORDED` (409), `CROSSMATCH_NOT_RECORDED` (reprint), `REPRINT_REASON_REQUIRED`, `VALIDATION_FAILED` (`patient_blood_group` missing, unknown user, vitals out of range), `FORBIDDEN`.
+Error codes (JSON as usual): `CASE_NOT_OPEN`, `UNIT_NOT_IN_CASE`, `UNIT_NOT_RESERVED` (409), `UNIT_EXPIRED`, `CROSSMATCH_INCOMPATIBLE`, `PATIENT_SAMPLE_NOT_COLLECTED`, `AMENDMENT_REASON_REQUIRED`, `CASE_DONOR_NOT_IN_CASE`, `POST_DONATION_VITALS_RECORDED` (409), `CROSSMATCH_NOT_RECORDED` (reprint), `REPRINT_REASON_REQUIRED`, `VALIDATION_FAILED` (`patient_blood_group` missing, unknown user, vitals out of range), `FORBIDDEN`.
 
 Not built yet: recording an incompatible crossmatch without issuing, returns / releasing a reservation, and reserving a stock unit for a case (so a case with no unit reserved through Component Preparation cannot be served yet).
 

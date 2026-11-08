@@ -21,7 +21,7 @@ use Modules\Shared\Support\Exceptions\DomainException;
 
 /**
  * Whether a unit can be issued to a case's patient (the case is open, the unit is reserved for it and not
- * expired), the patient sample the crossmatch is done on, which donors still need post-donation vitals, and how
+ * expired), the patient sample the crossmatch is done on, which donors have no post-donation vitals yet, and how
  * much of what the case was billed for is issued.
  */
 final class BloodIssueGate
