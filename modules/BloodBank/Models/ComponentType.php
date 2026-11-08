@@ -12,7 +12,7 @@ use Modules\BloodBank\Database\Factories\ComponentTypeFactory;
 use Modules\BloodBank\Enums\StorageLocationType;
 
 #[Table('bb_component_types')]
-#[Fillable(['code', 'name', 'shelf_life_hours', 'storage_condition', 'default_location_type', 'is_active'])]
+#[Fillable(['code', 'unit_prefix', 'name', 'shelf_life_hours', 'storage_condition', 'default_location_type', 'is_active'])]
 #[UseFactory(ComponentTypeFactory::class)]
 final class ComponentType extends Model
 {
@@ -20,7 +20,7 @@ final class ComponentType extends Model
     use HasFactory;
 
     /**
-     * Whole blood: a bag kept as it is, numbered with the bag no itself.
+     * Whole blood: a bag kept as it is; its unit no is the bag no with this type's prefix.
      */
     public const WHOLE_BLOOD = 'WB';
 

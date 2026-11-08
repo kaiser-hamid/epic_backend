@@ -14,12 +14,12 @@ final class ComponentTypeSeeder extends Seeder
     public function run(): void
     {
         $componentTypes = [
-            ['code' => 'WB', 'name' => 'Whole Blood', 'shelf_life_hours' => 35 * 24, 'storage_condition' => '2–6 °C'],
-            ['code' => 'PCV', 'name' => 'Packed Cell Volume', 'shelf_life_hours' => 42 * 24, 'storage_condition' => '2–6 °C'],
-            ['code' => 'FP', 'name' => 'Fresh Plasma', 'shelf_life_hours' => 365 * 24, 'storage_condition' => '-18 °C or colder'],
-            ['code' => 'CRYO', 'name' => 'Cryoprecipitate', 'shelf_life_hours' => 365 * 24, 'storage_condition' => '-18 °C or colder'],
-            ['code' => 'PLATELET', 'name' => 'Platelet Concentrate', 'shelf_life_hours' => 5 * 24, 'storage_condition' => '20–24 °C, agitated'],
-            ['code' => 'PLASMA', 'name' => 'Plasma', 'shelf_life_hours' => 365 * 24, 'storage_condition' => '-18 °C or colder'],
+            ['code' => 'WB', 'unit_prefix' => 'BH', 'name' => 'Whole Blood', 'shelf_life_hours' => 35 * 24, 'storage_condition' => '2–6 °C'],
+            ['code' => 'PCV', 'unit_prefix' => 'BC', 'name' => 'Packed Cell Volume', 'shelf_life_hours' => 42 * 24, 'storage_condition' => '2–6 °C'],
+            ['code' => 'FP', 'unit_prefix' => 'BP', 'name' => 'Fresh Plasma', 'shelf_life_hours' => 365 * 24, 'storage_condition' => '-18 °C or colder'],
+            ['code' => 'CRYO', 'unit_prefix' => 'BR', 'name' => 'Cryoprecipitate', 'shelf_life_hours' => 365 * 24, 'storage_condition' => '-18 °C or colder'],
+            ['code' => 'PLATELET', 'unit_prefix' => 'BT', 'name' => 'Platelet Concentrate', 'shelf_life_hours' => 5 * 24, 'storage_condition' => '20–24 °C, agitated'],
+            ['code' => 'PLASMA', 'unit_prefix' => 'BS', 'name' => 'Plasma', 'shelf_life_hours' => 365 * 24, 'storage_condition' => '-18 °C or colder'],
         ];
 
         foreach ($componentTypes as $componentType) {

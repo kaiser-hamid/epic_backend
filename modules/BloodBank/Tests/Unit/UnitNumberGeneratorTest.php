@@ -2,14 +2,10 @@
 
 use Modules\BloodBank\Services\UnitNumberGenerator;
 
-it('uses the bag number for the whole-blood unit', function () {
-    expect((new UnitNumberGenerator)->forUnit('BB-B-000123'))->toBe('BB-B-000123');
+it('numbers a unit as the bag number under the component prefix', function () {
+    expect((new UnitNumberGenerator)->forUnit('B2611020003', 'BT'))->toBe('BT2611020003');
 });
 
-it('appends the component code for a component', function () {
-    expect((new UnitNumberGenerator)->forUnit('BB-B-000123', 'PCV'))->toBe('BB-B-000123-PCV');
-});
-
-it('appends the split number for a split component', function () {
-    expect((new UnitNumberGenerator)->forUnit('BB-B-000123', 'PLT', 2))->toBe('BB-B-000123-PLT-2');
+it('appends the split number for a component divided into several bags', function () {
+    expect((new UnitNumberGenerator)->forUnit('B2611020003', 'BP', 2))->toBe('BP2611020003-2');
 });

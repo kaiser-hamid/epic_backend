@@ -19,7 +19,7 @@ final class UnitFactory extends Factory
     protected $model = Unit::class;
 
     /**
-     * A source (whole-blood) unit whose unit number is its collection's bag number.
+     * A source unit whose unit number is its collection's bag number under the component type's prefix.
      *
      * @return array<string, mixed>
      */
@@ -28,9 +28,11 @@ final class UnitFactory extends Factory
         return [
             'branch_id' => Branch::factory(),
             'collection_id' => Collection::factory(),
-            'unit_no' => fn (array $attributes): string => (new UnitNumberGenerator)
-                ->forUnit(Collection::findOrFail($attributes['collection_id'])->bag_no),
             'component_type_id' => ComponentType::factory(),
+            'unit_no' => fn (array $attributes): string => (new UnitNumberGenerator)->forUnit(
+                Collection::findOrFail($attributes['collection_id'])->bag_no,
+                ComponentType::findOrFail($attributes['component_type_id'])->unit_prefix,
+            ),
             'blood_group' => fake()->randomElement(BloodGroup::cases()),
             'volume_ml' => 350,
             'status' => UnitStatus::Available,
@@ -40,7 +42,7 @@ final class UnitFactory extends Factory
     }
 
     /**
-     * A component prepared from the given source unit, numbered as bag number plus component code.
+     * A component prepared from the given source unit, numbered as bag number under the component type's prefix.
      */
     public function component(Unit $parent, ?int $splitNo = null): self
     {
@@ -49,7 +51,7 @@ final class UnitFactory extends Factory
             'collection_id' => $parent->collection_id,
             'unit_no' => fn (array $attributes): string => (new UnitNumberGenerator)->forUnit(
                 Collection::findOrFail($parent->collection_id)->bag_no,
-                ComponentType::findOrFail($attributes['component_type_id'])->code,
+                ComponentType::findOrFail($attributes['component_type_id'])->unit_prefix,
                 $splitNo,
             ),
         ]);

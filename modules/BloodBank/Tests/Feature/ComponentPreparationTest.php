@@ -34,9 +34,9 @@ beforeEach(function () {
         BloodBankPermission::UnitLabelPrint,
     );
 
-    $this->wholeBlood = ComponentType::factory()->create(['code' => 'WB', 'shelf_life_hours' => 35 * 24]);
-    $this->pcv = ComponentType::factory()->create(['code' => 'PCV', 'shelf_life_hours' => 42 * 24]);
-    $this->plasma = ComponentType::factory()->create(['code' => 'FP', 'shelf_life_hours' => 365 * 24]);
+    $this->wholeBlood = ComponentType::factory()->create(['code' => 'WB', 'unit_prefix' => 'BH', 'shelf_life_hours' => 35 * 24]);
+    $this->pcv = ComponentType::factory()->create(['code' => 'PCV', 'unit_prefix' => 'BC', 'shelf_life_hours' => 42 * 24]);
+    $this->plasma = ComponentType::factory()->create(['code' => 'FP', 'unit_prefix' => 'BP', 'shelf_life_hours' => 365 * 24]);
     $this->fridge = StorageLocation::factory()->create(['branch_id' => $this->branch->id]);
     $this->freezer = StorageLocation::factory()->create(['branch_id' => $this->branch->id]);
 
@@ -72,18 +72,18 @@ it('separates a bag into the billed component for the patient and the rest for s
         ->assertCreated()
         ->assertJsonCount(2, 'data.prepared_unit_ids')
         ->assertJsonPath('data.can_prepare', false)
-        ->assertJsonPath('data.units.0.unit_no', 'B2611020001-PCV')
+        ->assertJsonPath('data.units.0.unit_no', 'BC2611020001')
         ->assertJsonPath('data.units.0.status', 'reserved')
         ->assertJsonPath('data.units.0.storage_location', null)
         ->assertJsonPath('data.units.0.reserved_for.patient_name', 'Rahim Uddin')
-        ->assertJsonPath('data.units.1.unit_no', 'B2611020001-FP')
+        ->assertJsonPath('data.units.1.unit_no', 'BP2611020001')
         ->assertJsonPath('data.units.1.status', 'available')
         ->assertJsonPath('data.units.1.reserved_for', null)
         ->assertJsonPath('data.case.components.0.held_count', 1)
         ->assertJsonPath('data.case.components.0.needed_count', 0);
 
-    $pcv = Unit::where('unit_no', 'B2611020001-PCV')->sole();
-    $plasma = Unit::where('unit_no', 'B2611020001-FP')->sole();
+    $pcv = Unit::where('unit_no', 'BC2611020001')->sole();
+    $plasma = Unit::where('unit_no', 'BP2611020001')->sole();
 
     expect($pcv->case_id)->toBe($this->case->id)
         ->and($pcv->branch_id)->toBe($this->branch->id)
@@ -102,7 +102,7 @@ it('keeps the bag as whole blood for a patient billed for whole blood', function
 
     ($this->prepare)([($this->forPatient)($this->wholeBlood)])
         ->assertCreated()
-        ->assertJsonPath('data.units.0.unit_no', 'B2611020001')
+        ->assertJsonPath('data.units.0.unit_no', 'BH2611020001')
         ->assertJsonPath('data.units.0.status', 'reserved');
 });
 
@@ -144,7 +144,7 @@ it('sends everything to stock once the case holds what it was billed for', funct
         ->assertCreated();
 
     expect(Unit::where('collection_id', $this->bag->id)->orderBy('id')->pluck('unit_no')->all())
-        ->toBe(['B2611020001-PCV', 'B2611020001-FP-1', 'B2611020001-FP-2']);
+        ->toBe(['BC2611020001', 'BP2611020001-1', 'BP2611020001-2']);
 });
 
 it('prepares a bag only once', function () {
@@ -224,7 +224,7 @@ it('prints the component label with the donor screening and requires a reason fo
 
     $print()
         ->assertOk()
-        ->assertJsonPath('data.0.unit_no', 'B2611020001-PCV')
+        ->assertJsonPath('data.0.unit_no', 'BC2611020001')
         ->assertJsonPath('data.0.blood_group', 'B_POS')
         ->assertJsonPath('data.0.donor_no', 'D2611000001')
         ->assertJsonPath('data.0.expires_at', $unit->expires_at->toIso8601String())
@@ -266,6 +266,6 @@ it('lists unprepared bags as pending and this branch\'s stock on the units tab',
         ->getJson('/api/blood-bank/units?filter[status]=available')
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.unit_no', 'B2611020002-FP')
+        ->assertJsonPath('data.0.unit_no', 'BP2611020002')
         ->assertJsonPath('data.0.storage_location.id', $this->freezer->id);
 });

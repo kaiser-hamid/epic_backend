@@ -77,7 +77,7 @@ Collection rules: a subject is collectable while the case is `open` and it has n
 | `sh_departments`, `sh_test_items` | Billable catalog: what the counter can charge for (code, name, `rate` in paisa). |
 | `sh_doctors` | Referring doctors / consultants. |
 | `bb_test_definitions` | The Blood Bank lab tests and their result fields: `result_type` (text / number / option), `unit`, `reference_range`, `method` (printed on the report, e.g. "Immunochromatographic Test", "ICT method"), `options` (for option lists), `applies_to` (patient / donor / both). Inserted by the migration `insert_bb_serology_test_definitions` (codes in `SerologyTest`; the form depends on them, so they are not a seeder): `BLOOD_GROUP` (one combined option, the `BloodGroup` values `A_POS` … `O_NEG`), and donor screening `HBSAG`, `ANTI_HCV`, `ANTI_HIV` (1 & 2), `SYPHILIS` (option `non_reactive` / `reactive`), and `MALARIAL_PARASITE` (option `not_found` / `found`, method "ICT method", added by the migration `insert_bb_malarial_parasite_test_definition`). The first four screening tests get `method` = "Immunochromatographic Test" from the migration `set_bb_serology_test_methods` (blood group has none). |
-| `bb_component_types` | WB, PCV, FP, CRYO, PLATELET, PLASMA… with `shelf_life_hours` (drives `expires_at`) and `default_location_type`. |
+| `bb_component_types` | WB, PCV, FP, CRYO, PLATELET, PLASMA… with `unit_prefix` (unit number prefix), `shelf_life_hours` (drives `expires_at`) and `default_location_type`. |
 | `bb_storage_locations` | Fridges, freezers, agitators (`type`), with temperature range. |
 | `bb_consumables` | Stock items (bags, reagents) with `minimum_stock`. |
 
@@ -179,8 +179,8 @@ Collection rules (`BloodCollectionGate`): the case is `open` and the donor belon
 
 A bag is prepared once, either kept as whole blood or separated into components. Stock is per branch: `bb_units.branch_id` comes from the case, and each branch has its own `bb_storage_locations`.
 
-1. Keep as whole blood → one `bb_units` row: `unit_no = bag_no`, `component_type_id` (WB).
-2. Or separate into components → one `bb_units` row per component: `unit_no = bag_no-CODE` (e.g. `B2611020001-PCV`; a component made twice gets `-1`, `-2`). No whole-blood row is kept for a separated bag; the components link to the bag through `collection_id` and have `parent_unit_id = null` (kept for splitting a unit later). Whole blood cannot be combined with components.
+1. Keep as whole blood → one `bb_units` row: `unit_no` = the bag no under the WB prefix (`B2611020001` → `BH2611020001`), `component_type_id` (WB).
+2. Or separate into components → one `bb_units` row per component: `unit_no` = the bag no under the component type's `unit_prefix` (e.g. `BC2611020001` for PCV; prefixes: WB `BH`, PCV `BC`, FP `BP`, CRYO `BR`, PLATELET `BT`, PLASMA `BS`; a component made twice gets `-1`, `-2`). No whole-blood row is kept for a separated bag; the components link to the bag through `collection_id` and have `parent_unit_id = null` (kept for splitting a unit later). Whole blood cannot be combined with components.
 3. Every unit: `branch_id`, `collection_id`, `blood_group` (the donor's, from serology), `volume_ml`, `prepared_at`, `expires_at = bb_collections.collected_at + shelf_life_hours`, `storage_location_id` (any active location of the branch; required for stock, optional for a unit for the patient).
 4. The preparation must strictly match what the case was billed for (`bb_case_components`) and still needs (quantity minus units already reserved or issued to the case):
    - "For this patient" → `status = reserved`, `case_id` = the case; only for a component the case still needs, up to the outstanding quantity.

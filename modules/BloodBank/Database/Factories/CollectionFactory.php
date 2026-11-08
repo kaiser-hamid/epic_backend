@@ -21,7 +21,7 @@ final class CollectionFactory extends Factory
     public function definition(): array
     {
         return [
-            'bag_no' => fake()->unique()->numerify('BB-B-######'),
+            'bag_no' => fake()->unique()->numerify('B##########'),
             'case_donor_id' => CaseDonor::factory(),
             'volume_ml' => 450,
             'collected_at' => now(),

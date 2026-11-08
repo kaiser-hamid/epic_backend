@@ -253,10 +253,13 @@ final class PrepareUnits
     }
 
     /**
-     * Unit numbers in request order; a component made more than once from the bag gets split numbers 1, 2, ….
+     * Unit numbers in request order: the bag number under the component type's prefix; a component made more than
+     * once from the bag gets split numbers 1, 2, ….
      *
      * @param  array<int, ComponentType>  $componentTypes
      * @return array<int, string>
+     *
+     * @throws ValidationException
      */
     private function unitNumbers(Collection $collection, PrepareUnitsData $data, array $componentTypes): array
     {
@@ -266,17 +269,21 @@ final class PrepareUnits
         $numbers = [];
 
         foreach ($data->units as $index => $row) {
-            $code = $componentTypes[$row->componentTypeId]->code;
+            $componentType = $componentTypes[$row->componentTypeId];
 
-            if ($code === ComponentType::WHOLE_BLOOD) {
-                $numbers[$index] = $this->unitNumbers->forUnit($collection->bag_no);
+            if ($componentType->unit_prefix === null) {
+                throw ValidationException::withMessages(["units.{$index}.component_type_id" => 'The selected component type has no unit number prefix.']);
+            }
+
+            if ($componentType->code === ComponentType::WHOLE_BLOOD) {
+                $numbers[$index] = $this->unitNumbers->forUnit($collection->bag_no, $componentType->unit_prefix);
 
                 continue;
             }
 
             $seen[$row->componentTypeId] = ($seen[$row->componentTypeId] ?? 0) + 1;
             $splitNo = $totals[$row->componentTypeId] > 1 ? $seen[$row->componentTypeId] : null;
-            $numbers[$index] = $this->unitNumbers->forUnit($collection->bag_no, $code, $splitNo);
+            $numbers[$index] = $this->unitNumbers->forUnit($collection->bag_no, $componentType->unit_prefix, $splitNo);
         }
 
         return $numbers;

@@ -19,6 +19,7 @@ final class ComponentTypeFactory extends Factory
     {
         return [
             'code' => fake()->unique()->lexify('CMP_????'),
+            'unit_prefix' => 'B'.fake()->unique()->lexify('???'),
             'name' => fake()->words(2, true),
             'shelf_life_hours' => 24 * 35,
             'is_active' => true,
