@@ -43,6 +43,7 @@ beforeEach(function () {
         'anti_hcv' => 'non_reactive',
         'anti_hiv' => 'non_reactive',
         'syphilis' => 'non_reactive',
+        'malarial_parasite' => 'not_found',
         'decision' => 'accepted',
     ];
 
@@ -58,18 +59,23 @@ it('records the results, makes the donor eligible and sets the donor\'s blood gr
         ->assertJsonPath('data.donors.0.blood_group', 'B_POS')
         ->assertJsonPath('data.donors.0.sample.sample_no', 'S2611020001')
         ->assertJsonPath('data.donors.0.serology.anti_hiv', 'non_reactive')
+        ->assertJsonPath('data.donors.0.serology.malarial_parasite', 'not_found')
         ->assertJsonPath('data.donors.0.serology.version', 1)
         ->assertJsonPath('data.donors.0.serology.tested_by.name', 'Dr. Nasrin')
         ->assertJsonPath('data.donors.0.can_record', true);
 
-    expect(TestResult::where('sample_id', $this->sample->id)->current()->count())->toBe(5)
+    expect(TestResult::where('sample_id', $this->sample->id)->current()->count())->toBe(6)
         ->and($this->sample->refresh()->status)->toBe(SampleStatus::Tested)
         ->and($this->donor->donor->refresh()->blood_group)->toBe(BloodGroup::BPositive)
         ->and(AuditLog::where('action', BloodBankAuditAction::DonorSerologyRecorded)->count())->toBe(1);
 });
 
-it('refuses to accept a donor with a reactive result but allows the deferral', function () {
+it('refuses to accept a donor with a reactive or malaria found result but allows the deferral', function () {
     ($this->record)([...$this->serology, 'hbsag' => 'reactive'])
+        ->assertUnprocessable()
+        ->assertJson(['code' => 'REACTIVE_DONOR_NOT_ACCEPTABLE']);
+
+    ($this->record)([...$this->serology, 'malarial_parasite' => 'found'])
         ->assertUnprocessable()
         ->assertJson(['code' => 'REACTIVE_DONOR_NOT_ACCEPTABLE']);
 
@@ -97,7 +103,7 @@ it('keeps the old result as history when a result is amended, with a reason', fu
     $history = TestResult::where('sample_id', $this->sample->id)->orderBy('id')->get();
     $bloodGroup = $history->where('result_value', 'O_POS')->sole();
 
-    expect($history)->toHaveCount(6)
+    expect($history)->toHaveCount(7)
         ->and($history->where('result_value', 'B_POS')->sole()->is_current)->toBeFalse()
         ->and($bloodGroup->version)->toBe(2)
         ->and($bloodGroup->amendment_reason)->toBe('Re-tested, typing error')
@@ -114,7 +120,7 @@ it('lets the physician switch a serology deferral to an acceptance without an am
         ->assertJsonPath('data.donors.0.case_donor_status', 'eligible')
         ->assertJsonPath('data.donors.0.deferral_reason', null);
 
-    expect(TestResult::count())->toBe(5);
+    expect(TestResult::count())->toBe(6);
 });
 
 it('refuses the form while the donor cannot be tested', function (Closure $setUp, string $code, int $status) {
@@ -140,6 +146,8 @@ it('rejects an incomplete or inconsistent form', function (array $override, stri
 })->with([
     'missing blood group' => [['blood_group' => null], 'blood_group'],
     'unknown result' => [['syphilis' => 'positive'], 'syphilis'],
+    'missing malarial parasite' => [['malarial_parasite' => null], 'malarial_parasite'],
+    'reactive is not a malarial parasite result' => [['malarial_parasite' => 'reactive'], 'malarial_parasite'],
     'decision of another stage' => [['decision' => 'fit'], 'decision'],
     'deferral without a reason' => [['decision' => 'deferred'], 'deferral_reason'],
     'reason on an acceptance' => [['deferral_reason' => 'Tattoo'], 'deferral_reason'],

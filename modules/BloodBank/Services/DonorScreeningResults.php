@@ -8,7 +8,8 @@ use Modules\BloodBank\Models\TestResult;
 
 /**
  * A donor's current screening results (blood group excluded) in the serology form's order, as printed on the
- * component label and the Compatibility Test Report. A test not saved yet has a null result.
+ * component label and the Compatibility Test Report. A test with no saved result is left out (a donor whose
+ * serology was saved before the test was added has none).
  */
 final class DonorScreeningResults
 {
@@ -33,11 +34,15 @@ final class DonorScreeningResults
 
             $result = $results?->get($test->value);
 
+            if ($result === null) {
+                continue;
+            }
+
             $screening[] = [
                 'code' => $test->value,
-                'name' => $result?->testDefinition->name ?? $test->value,
-                'method' => $result?->testDefinition->method,
-                'result' => $result?->result_value,
+                'name' => $result->testDefinition->name,
+                'method' => $result->testDefinition->method,
+                'result' => $result->result_value,
             ];
         }
 

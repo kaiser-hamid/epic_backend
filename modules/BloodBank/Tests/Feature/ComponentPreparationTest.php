@@ -211,6 +211,11 @@ it('prints the component label with the donor screening and requires a reason fo
         'test_definition_id' => TestDefinition::where('code', 'HBSAG')->value('id'),
         'result_value' => 'non_reactive',
     ]);
+    TestResult::factory()->create([
+        'sample_id' => $sample->id,
+        'test_definition_id' => TestDefinition::where('code', 'MALARIAL_PARASITE')->value('id'),
+        'result_value' => 'not_found',
+    ]);
     ($this->prepare)([($this->forPatient)($this->pcv)])->assertCreated();
     $unit = Unit::sole();
 
@@ -225,6 +230,9 @@ it('prints the component label with the donor screening and requires a reason fo
         ->assertJsonPath('data.0.expires_at', $unit->expires_at->toIso8601String())
         ->assertJsonPath('data.0.screening.0.code', 'HBSAG')
         ->assertJsonPath('data.0.screening.0.result', 'non_reactive')
+        ->assertJsonPath('data.0.screening.1.code', 'MALARIAL_PARASITE')
+        ->assertJsonPath('data.0.screening.1.method', 'ICT method')
+        ->assertJsonPath('data.0.screening.1.result', 'not_found')
         ->assertJsonPath('data.0.reserved_for.patient_no', 'P2611020001')
         ->assertJsonPath('data.0.label_print.is_reprint', false);
 

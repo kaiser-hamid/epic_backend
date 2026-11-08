@@ -5,7 +5,7 @@ namespace Modules\BloodBank\Services;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Str;
-use Modules\BloodBank\Enums\ScreeningResult;
+use Modules\BloodBank\Enums\SerologyTest;
 use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Models\Crossmatch;
 use Modules\BloodBank\Models\PatientCase;
@@ -90,7 +90,7 @@ final class CompatibilityReportBuilder
                 'screening' => array_map(fn (array $test): array => [
                     'name' => $test['name'],
                     'method' => $test['method'],
-                    'result' => $test['result'] === null ? null : (ScreeningResult::tryFrom($test['result'])?->label() ?? $test['result']),
+                    'result' => $test['result'] === null ? null : SerologyTest::from($test['code'])->resultLabel($test['result']),
                 ], $this->screeningResults->forCaseDonor($collection->caseDonor)),
                 'compatibility' => $crossmatch->isCompatible()
                     ? 'Compatible (Major/Minor)'

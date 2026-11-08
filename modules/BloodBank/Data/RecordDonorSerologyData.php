@@ -2,6 +2,7 @@
 
 namespace Modules\BloodBank\Data;
 
+use Modules\BloodBank\Enums\MalariaResult;
 use Modules\BloodBank\Enums\ScreeningResult;
 use Modules\BloodBank\Enums\SerologyDecision;
 use Modules\BloodBank\Enums\SerologyTest;
@@ -11,10 +12,10 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
- * The donor serological investigation form: the blood group, the four screening results and the physician's
- * required decision (`accepted` / `deferred`). `deferral_reason` is required for a deferral and only allowed
- * then. `amendment_reason` is needed when a saved result is changed (checked by the action, which knows the
- * saved values).
+ * The donor serological investigation form: the blood group, the five screening results (the malarial parasite
+ * test is `not_found` / `found`, the others `non_reactive` / `reactive`) and the physician's required decision
+ * (`accepted` / `deferred`). `deferral_reason` is required for a deferral and only allowed then. `amendment_reason` is needed when a
+ * saved result is changed (checked by the action, which knows the saved values).
  */
 #[MapName(SnakeCaseMapper::class)]
 final class RecordDonorSerologyData extends Data
@@ -25,6 +26,7 @@ final class RecordDonorSerologyData extends Data
         public ScreeningResult $antiHcv,
         public ScreeningResult $antiHiv,
         public ScreeningResult $syphilis,
+        public MalariaResult $malarialParasite,
         public SerologyDecision $decision,
         public ?string $deferralReason = null,
         public ?string $amendmentReason = null,
@@ -57,11 +59,16 @@ final class RecordDonorSerologyData extends Data
             SerologyTest::AntiHcv->value => $this->antiHcv->value,
             SerologyTest::AntiHiv->value => $this->antiHiv->value,
             SerologyTest::Syphilis->value => $this->syphilis->value,
+            SerologyTest::MalarialParasite->value => $this->malarialParasite->value,
         ];
     }
 
+    /**
+     * Whether any screening test is reactive, or the malarial parasite test is found.
+     */
     public function hasReactiveResult(): bool
     {
-        return in_array(ScreeningResult::Reactive, [$this->hbsag, $this->antiHcv, $this->antiHiv, $this->syphilis], true);
+        return $this->malarialParasite === MalariaResult::Found
+            || in_array(ScreeningResult::Reactive, [$this->hbsag, $this->antiHcv, $this->antiHiv, $this->syphilis], true);
     }
 }
