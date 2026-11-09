@@ -10,6 +10,8 @@ final class ShowInvoice
     {
         return $billing->load([
             'patient',
+            'patientType',
+            'discounts',
             'items.testItem',
             'referral.doctor',
             'referral.secondDoctor',

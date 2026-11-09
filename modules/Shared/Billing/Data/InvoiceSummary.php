@@ -19,6 +19,8 @@ final class InvoiceSummary extends Data
     public function __construct(
         public int $id,
         public string $invoiceNo,
+        public int $patientId,
+        public int $branchId,
         public int $amount,
         public BillingStatus $status,
         public CarbonImmutable $billedAt,
@@ -31,6 +33,8 @@ final class InvoiceSummary extends Data
         return new self(
             id: $billing->id,
             invoiceNo: $billing->invoice_no,
+            patientId: $billing->patient_master_id,
+            branchId: $billing->branch_id,
             amount: $billing->amount,
             status: $billing->status,
             billedAt: $billing->billed_at->toImmutable(),

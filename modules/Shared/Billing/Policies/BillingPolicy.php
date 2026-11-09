@@ -18,4 +18,9 @@ final class BillingPolicy
     {
         return $this->accessChecker->allowsOnRecord($user, SharedPermission::BillingView, $billing->branch_id);
     }
+
+    public function print(User $user, Billing $billing): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, SharedPermission::BillingPrint, $billing->branch_id);
+    }
 }

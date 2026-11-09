@@ -11,8 +11,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\BloodBank\Database\Factories\ComponentTypeFactory;
 use Modules\BloodBank\Enums\StorageLocationType;
 
+/**
+ * A blood component (WB, PCV, FP…), created from the Blood Bank catalog item that bills it: `test_item_id` with the
+ * item's code and name copied. Its own short `code`, `unit_prefix` and shelf life drive preparation and labels.
+ */
 #[Table('bb_component_types')]
-#[Fillable(['code', 'unit_prefix', 'name', 'shelf_life_hours', 'storage_condition', 'default_location_type', 'is_active'])]
+#[Fillable([
+    'test_item_id', 'test_item_code', 'test_item_name', 'code', 'unit_prefix', 'name', 'shelf_life_hours', 'storage_condition',
+    'default_location_type', 'is_active',
+])]
 #[UseFactory(ComponentTypeFactory::class)]
 final class ComponentType extends Model
 {

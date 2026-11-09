@@ -6,10 +6,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\BloodBank\Actions\AddCaseDonor;
-use Modules\BloodBank\Actions\RegisterCase;
+use Modules\BloodBank\Actions\UpdateCaseDetails;
 use Modules\BloodBank\Data\AddCaseDonorData;
 use Modules\BloodBank\Data\CaseLookupData;
-use Modules\BloodBank\Data\RegisterCaseData;
+use Modules\BloodBank\Data\UpdateCaseDetailsData;
 use Modules\BloodBank\Http\Resources\CaseResource;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Queries\ListCases;
@@ -20,7 +20,7 @@ final class CaseController
     public function __construct(
         private readonly ListCases $listCases,
         private readonly ShowCase $showCase,
-        private readonly RegisterCase $registerCase,
+        private readonly UpdateCaseDetails $updateCaseDetails,
         private readonly AddCaseDonor $addCaseDonor,
     ) {}
 
@@ -29,14 +29,14 @@ final class CaseController
         return CaseResource::collection($this->listCases->get($request));
     }
 
-    public function store(Request $request, RegisterCaseData $data): CaseResource
-    {
-        return CaseResource::make($this->registerCase->handle($request->user(), $data));
-    }
-
     public function show(PatientCase $case): CaseResource
     {
         return CaseResource::make($this->showCase->get($case));
+    }
+
+    public function update(PatientCase $case, UpdateCaseDetailsData $data): CaseResource
+    {
+        return CaseResource::make($this->updateCaseDetails->handle($case, $data));
     }
 
     public function lookup(CaseLookupData $data): CaseResource

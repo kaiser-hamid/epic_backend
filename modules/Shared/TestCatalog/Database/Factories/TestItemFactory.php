@@ -3,6 +3,7 @@
 namespace Modules\Shared\TestCatalog\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 use Modules\Shared\TestCatalog\Models\Department;
 use Modules\Shared\TestCatalog\Models\TestItem;
 
@@ -23,8 +24,22 @@ final class TestItemFactory extends Factory
             'code' => fake()->unique()->numerify('ITEM-#####'),
             'name' => fake()->unique()->words(3, true),
             'department_name' => fn (array $attributes): string => Department::findOrFail($attributes['department_id'])->name,
+            'category' => TestItemCategory::General,
             'rate' => fake()->numberBetween(100, 5000) * 100,
             'is_active' => true,
         ];
+    }
+
+    public function bloodBank(): self
+    {
+        return $this->state(['category' => TestItemCategory::BloodBank]);
+    }
+
+    /**
+     * Overrides the bill's discount policy for this item, in percent (0 = never discounted).
+     */
+    public function discountPercent(int $percent): self
+    {
+        return $this->state(['discount_rate_bp' => $percent * 100]);
     }
 }

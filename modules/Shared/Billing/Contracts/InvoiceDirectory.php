@@ -27,4 +27,9 @@ interface InvoiceDirectory
      * The billing id for a scanned or typed invoice number, in any branch.
      */
     public function idForInvoiceNo(string $invoiceNo): ?int;
+
+    /**
+     * The (not deleted) invoice with this number, in any branch, e.g. a bill staff attach to a Blood Bank donor.
+     */
+    public function findByInvoiceNo(string $invoiceNo): ?InvoiceSummary;
 }

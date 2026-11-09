@@ -4,8 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The fixed catalog item Blood Bank bills when a donor is added to an existing case (code `BB-ADDL-DONOR`,
- * `AddCaseDonor::CHARGE_TEST_ITEM_CODE`). It ships with the schema because the operation depends on it. Values are
+ * The fixed catalog item for an extra Blood Bank donor (code `BB-ADDL-DONOR`), billed on New Bill Entry like any
+ * general item (it opens no case); the bill is then attached to the donor on Add Donor. Values are
  * literals; re-running leaves an edited rate alone.
  */
 return new class extends Migration

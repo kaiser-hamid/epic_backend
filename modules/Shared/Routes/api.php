@@ -9,6 +9,7 @@ use Modules\Shared\Auth\Http\Controllers\StaffController;
 use Modules\Shared\Auth\Http\Controllers\UserAccountController;
 use Modules\Shared\Auth\Http\Controllers\UserController;
 use Modules\Shared\Billing\Http\Controllers\InvoiceController;
+use Modules\Shared\Billing\Http\Controllers\PatientTypeController;
 use Modules\Shared\Branch\Http\Controllers\BranchController;
 use Modules\Shared\Doctor\Http\Controllers\DoctorController;
 use Modules\Shared\Patient\Http\Controllers\PatientController;
@@ -78,7 +79,7 @@ Route::prefix('patients')->name('patients.')->middleware(['erp.auth', 'erp.passw
 });
 
 /*
-| Pickers for the billing form (shared billing and Blood Bank case registration). Reference data with picker
+| Pickers for the billing form. Reference data with picker
 | fields only, so any signed-in staff member may search it without a dedicated permission.
 */
 Route::middleware(['erp.auth', 'erp.password-changed'])->group(function (): void {
@@ -90,5 +91,8 @@ Route::middleware(['erp.auth', 'erp.password-changed'])->group(function (): void
 Route::prefix('billing')->name('billing.')->middleware(['erp.auth', 'erp.password-changed'])->group(function (): void {
     Route::get('invoices', [InvoiceController::class, 'index'])->middleware('can:sh.billing.view')->name('invoices.index');
     Route::post('invoices', [InvoiceController::class, 'store'])->middleware('can:sh.billing.create')->name('invoices.store');
+    Route::post('invoices/quote', [InvoiceController::class, 'quote'])->middleware('can:sh.billing.create')->name('invoices.quote');
+    Route::get('patient-types', [PatientTypeController::class, 'index'])->middleware('can:sh.billing.create')->name('patient-types.index');
     Route::get('invoices/{billing}', [InvoiceController::class, 'show'])->middleware('can:view,billing')->name('invoices.show');
+    Route::post('invoices/{billing}/print', [InvoiceController::class, 'print'])->middleware('can:print,billing')->name('invoices.print');
 });

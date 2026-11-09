@@ -20,6 +20,7 @@ enum SharedPermission: string implements PermissionDefinition
     case PatientCreate = 'sh.patient.create';
     case BillingView = 'sh.billing.view';
     case BillingCreate = 'sh.billing.create';
+    case BillingPrint = 'sh.billing.print';
 
     public function module(): string
     {
@@ -31,7 +32,7 @@ enum SharedPermission: string implements PermissionDefinition
         return match ($this) {
             self::RoleView, self::RoleManage => 'Roles',
             self::PatientView, self::PatientCreate => 'Patients',
-            self::BillingView, self::BillingCreate => 'Billing',
+            self::BillingView, self::BillingCreate, self::BillingPrint => 'Billing',
             default => 'Users',
         };
     }
@@ -53,6 +54,7 @@ enum SharedPermission: string implements PermissionDefinition
             self::PatientCreate => 'Register patients',
             self::BillingView => 'View the branch\'s invoices',
             self::BillingCreate => 'Create invoices, registering a new patient on the bill if needed',
+            self::BillingPrint => 'Print and reprint the branch\'s invoices (a reprint needs a reason)',
         };
     }
 }

@@ -15,6 +15,7 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * Invoices of the session's branch only. Filters: `filter[invoice_no]`, `filter[patient_id]`, `filter[status]`,
+ * `filter[category]` (`general`, `blood_bank`), `filter[patient_type_id]`,
  * `filter[billed_from]` / `filter[billed_to]` (Y-m-d, inclusive), `filter[search]` (patient name, phone,
  * patient no). Sorts: `billed_at` (default newest first), `invoice_no`. Include: `items.testItem`.
  * `per_page` up to 100.
@@ -30,13 +31,15 @@ final class ListInvoices
     {
         $baseQuery = Billing::query()
             ->where('branch_id', $this->currentBranch->id())
-            ->with(['patient', 'referral.doctor']);
+            ->with(['patient', 'patientType', 'referral.doctor']);
 
         return QueryBuilder::for($baseQuery, $request)
             ->allowedFilters(
                 AllowedFilter::exact('invoice_no')->delimiter(''),
                 AllowedFilter::exact('patient_id', 'patient_master_id'),
                 AllowedFilter::exact('status'),
+                AllowedFilter::exact('category'),
+                AllowedFilter::exact('patient_type_id'),
                 AllowedFilter::callback('billed_from', fn (Builder $query, string $date) => $query
                     ->where('billed_at', '>=', $this->date('billed_from', $date)->startOfDay())),
                 AllowedFilter::callback('billed_to', fn (Builder $query, string $date) => $query

@@ -3,22 +3,24 @@
 namespace Modules\Shared\Billing\Data;
 
 use Carbon\CarbonImmutable;
-use Spatie\LaravelData\Attributes\MapName;
-use Spatie\LaravelData\Data;
-use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
- * What another module needs to keep after billing: the ids to store and the numbers to show.
+ * What another module needs from a just-saved bill: the ids to store, the numbers to show and the billed lines.
+ * Never a Shared model.
  */
-#[MapName(SnakeCaseMapper::class)]
-final class IssuedInvoice extends Data
+final readonly class IssuedInvoice
 {
+    /**
+     * @param  list<IssuedInvoiceLine>  $lines
+     */
     public function __construct(
         public int $billingId,
         public string $invoiceNo,
+        public int $branchId,
         public int $patientId,
         public string $patientNo,
         public int $amount,
         public CarbonImmutable $billedAt,
+        public array $lines,
     ) {}
 }

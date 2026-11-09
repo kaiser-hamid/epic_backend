@@ -13,10 +13,20 @@ use Modules\BloodBank\Models\Donor;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Sample;
 use Modules\BloodBank\Models\Unit;
+use Modules\BloodBank\Services\BloodBankInvoiceHandler;
+use Modules\Shared\Billing\Contracts\InvoiceCategoryHandler;
 use Modules\Shared\Rbac\Services\PermissionRegistry;
 
 final class BloodBankServiceProvider extends ServiceProvider
 {
+    /**
+     * A Blood Bank bill opens its case through Shared billing's category handler.
+     */
+    public function register(): void
+    {
+        $this->app->tag([BloodBankInvoiceHandler::class], InvoiceCategoryHandler::TAG);
+    }
+
     public function boot(PermissionRegistry $permissions): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');

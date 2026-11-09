@@ -1,15 +1,18 @@
 # Blood Bank: what data goes where
 
-Personal reference. Follows one patient case from registration to an issued unit, naming the table and columns written at each step. Based on the migrations as they stand (2026-10-25).
+Personal reference. Follows one patient case from billing to an issued unit, naming the table and columns written at each step. Based on the migrations as they stand (2026-11-09).
 
 ## The big picture
 
 ```
 sh_patient_master ─┐
-                   ├─> sh_billing ──> sh_billing_items (what was billed)
-                   │       └────────> sh_billing_referrals (referring doctor = "Name of consultant")
+                   ├─> sh_billing ──> sh_billing_items (what was billed; category blood_bank or general, never mixed)
+                   │       ├────────> sh_billing_referrals (referring doctor = "Name of consultant")
+                   │       ├────────> sh_billing_discounts (policy snapshot, e.g. "General 25%")
+                   │       │
+                   │       └─ a Blood Bank bill opens exactly one case (bb_cases.billing_id, unique)
                    │
-                   └─> bb_cases ──┬─> bb_case_components (what the patient needs: 2 × PCV, 1 × FP)
+                   └─> bb_cases ──┬─> bb_case_components (billed component items: 2 × PCV, 1 × FP)
                                   ├─> bb_samples (subject = patient) ──> bb_test_results (ABO, Rh)
                                   ├─> bb_crossmatches (patient sample × unit → Compatibility Test Report)
                                   ├─> bb_units.case_id (units reserved for / issued to this case)
@@ -26,7 +29,7 @@ sh_print_logs     ← every label / report print, for samples, bags, units, case
 bb_consumable_*   ← separate stock ledger for bags, reagents, etc.
 ```
 
-Shared tables (`sh_`) are owned by Shared. Blood Bank only stores their IDs (`patient_master_id`, `billing_id`) and never writes to them.
+Shared tables (`sh_`) are owned by Shared. Blood Bank only stores their IDs (`patient_master_id`, `billing_id`, `test_item_id`) and never writes to them. Billing never imports Blood Bank: it hands a saved Blood Bank bill to the `InvoiceCategoryHandler` that Blood Bank registers (`BloodBankInvoiceHandler`, tagged `billing.invoice_category_handlers`), inside the bill's transaction.
 
 ## Build status and menus
 
@@ -34,13 +37,14 @@ All APIs are under `/api/blood-bank`.
 
 | Menu | Steps | Status | APIs |
 |---|---|---|---|
-| **Cases** (Register Case, Case List) | 1, 2, 4.1–4.2 | Done | `GET/POST cases`, `GET cases/{case}` |
+| **Billing → New Bill Entry, Bill List** (Shared; a Blood Bank bill opens the case) | 1, 2 | Done | `/api/billing`: `GET/POST invoices`, `POST invoices/quote`, `GET invoices/{billing}`, `POST invoices/{billing}/print`, `GET patient-types` |
+| **Cases** (Case List, case detail: edit details, Add donor) | 2 | Done | `GET cases`, `GET/PATCH cases/{case}` |
 | **Donors** | 4.1 | Done | `GET donors`, `GET donors/lookup`, `GET donors/{donor}` |
 | **Sample Collection** (tabs: Collection, Pending, Collected) | 3.1–3.2, 5.2 | Done | see below |
 | **Donor Examination** (physician: pre-donation physical exam + Accept / Defer on one form) | 5.1 | Done | see step 5 |
 | **Donor Serology** (blood group + screening results and Accept / Defer on one form) | 5.3–5.4 | Done | see step 5 |
 | **Test Results** (patient ABO, Rh; review, amend) | 3.3–3.5 | Next | |
-| **Add donor** (Cases page button: invoice lookup, then one donor per save, billed separately) | 4.3 | Done | `GET add-donor?invoice_no=`, `POST cases/{case}/donors` |
+| **Add donor** (Cases page / case detail button: invoice lookup, then one donor per save under an existing bill) | 4.1–4.3 | Done | `GET add-donor?invoice_no=`, `POST cases/{case}/donors` |
 | **Settings → Test Definitions** | 0 | Next | |
 | **Blood Collection** (tabs: Collection, Pending, Collected; bag + bag label) | 6.1–6.2, 6.4 | Done | see step 6 |
 | **Post-donation vitals** | 6.3 | Done | optional, on the Blood Issue form (step 9) |
@@ -74,24 +78,33 @@ Collection rules: a subject is collectable while the case is `open` and it has n
 
 | Table | What goes in |
 |---|---|
-| `sh_departments`, `sh_test_items` | Billable catalog: what the counter can charge for (code, name, `rate` in paisa). |
+| `sh_departments`, `sh_test_items` | Billable catalog: what the counter can charge for (code, name, `rate` in paisa). `category` (`general` / `blood_bank`) decides the kind of bill; department grouping is unrelated. `discount_rate_bp` is the item's own discount under a policy (null = follow the policy, 0 = never discounted). The additional donor charge `BB-ADDL-DONOR` is `general`, so its bill opens no case. |
+| `sh_patient_types`, `sh_discount_policies` | Patient type (required on every bill; "General Patient" = `GENERAL`) grouping the discount policies staff may pick, at most one per bill ("General 25%" = `GENERAL_25`, `rate_bp` 2500). Inserted by migration. |
 | `sh_doctors` | Referring doctors / consultants. |
 | `bb_test_definitions` | The Blood Bank lab tests and their result fields: `result_type` (text / number / option), `unit`, `reference_range`, `method` (printed on the report, e.g. "Immunochromatographic Test", "ICT method"), `options` (for option lists), `applies_to` (patient / donor / both). Inserted by the migration `insert_bb_serology_test_definitions` (codes in `SerologyTest`; the form depends on them, so they are not a seeder): `BLOOD_GROUP` (one combined option, the `BloodGroup` values `A_POS` … `O_NEG`), and donor screening `HBSAG`, `ANTI_HCV`, `ANTI_HIV` (1 & 2), `SYPHILIS` (option `non_reactive` / `reactive`), and `MALARIAL_PARASITE` (option `not_found` / `found`, method "ICT method", added by the migration `insert_bb_malarial_parasite_test_definition`). The first four screening tests get `method` = "Immunochromatographic Test" from the migration `set_bb_serology_test_methods` (blood group has none). |
-| `bb_component_types` | WB, PCV, FP, CRYO, PLATELET, PLASMA… with `unit_prefix` (unit number prefix), `shelf_life_hours` (drives `expires_at`) and `default_location_type`. |
+| `bb_component_types` | WB, PCV, FP, CRYO, PLATELET, PLASMA… each created from a `blood_bank` catalog item: `test_item_id` (required, unique) plus copies `test_item_code` / `test_item_name`, next to Blood Bank's own short `code` (drives preparation logic and labels), `unit_prefix` (unit number prefix), `shelf_life_hours` (drives `expires_at`) and `default_location_type`. `ComponentTypeSeeder` builds them from the catalog by item name. |
 | `bb_storage_locations` | Fridges, freezers, agitators (`type`), with temperature range. |
 | `bb_consumables` | Stock items (bags, reagents) with `minimum_stock`. |
 
-Steps 1, 2 and 4.1–4.2 are one form and one request: `POST /api/blood-bank/cases` (`RegisterCase`). Blood Bank is a branch (code `NB`). The action calls Shared's `InvoiceIssuer` contract for step 1, then writes steps 2 and 4 in the same transaction; it reads patient and invoice details back through `PatientDirectory` / `InvoiceDirectory`.
+Steps 1 and 2 are one form and one request in Billing: `POST /api/billing/invoices` (`CreateInvoice`, New Bill Entry). There is no manual case creation. Blood Bank is a branch (code `NB`). When the bill's items are Blood Bank items, `CreateInvoice` hands it to `BloodBankInvoiceHandler`, which opens the case (step 2) in the same transaction; if that fails, no bill is saved either. Donors are added afterwards, one per save (step 4). Blood Bank reads patient and invoice details back through `PatientDirectory` / `InvoiceDirectory`.
 
 ### 1. Patient registration and billing (Shared)
 
 1. Find or create the patient → `sh_patient_master` (`patient_no` = `P{yyMMdd}{0001}`, global, daily reset; name, age, gender, blood group, phone…).
-2. Counter bills the blood bank service → `sh_billing` (`invoice_no` = `{branch code}{yyMMdd}{0001}`, e.g. `NB2610280001`, per branch, daily reset; `branch_id` of the issuing branch, `amount` total in paisa, `status`), lines in `sh_billing_items` (`test_item_id`, `quantity`, `rate` snapshot, `amount`), referral in `sh_billing_referrals` (doctor, second doctor, or self-referral). The referring doctor here is the register's **"Name of consultant"**; Blood Bank does not store it again.
+2. Counter bills the blood bank service → `sh_billing` (`invoice_no` = the vendor's number when typed, else `{branch code}{yyMMdd}{0001}`, e.g. `NB2610280001`, per branch, daily reset; `branch_id` of the issuing branch, `category`, `patient_type_id`, `subtotal_amount`, `discount_amount`, signed `rounding_amount`, `amount` = payable in paisa, `status`, `idempotency_key`), lines in `sh_billing_items` (`test_item_id`, `category`, `quantity`, `rate` snapshot, `amount`, `discount_rate_bp`, `discount_amount`, `net_amount`), the chosen policy snapshot in `sh_billing_discounts`, referral in `sh_billing_referrals` (doctor, second doctor, or self-referral). The referring doctor here is the register's **"Name of consultant"**; Blood Bank does not store it again.
+   - One bill is either Blood Bank or general: mixing returns `INVOICE_CATEGORY_MIXED`, and the composite FK `sh_billing_items (billing_id, category) → sh_billing (id, category)` refuses it in the database too. The form drops the other items (after a confirm) when the first Blood Bank item is picked.
+   - Discount: each line `rate × qty × (item rate ?? policy rate)`, rounded half-up to the paisa (no policy = no discount, the item rate is ignored). Payable: drop the paisa, then round up to the next 10 taka (Tk 1,022.25 → 1,030; Tk 1,020.50 → 1,020), on every bill. `POST invoices/quote` returns the same totals without saving. `DISCOUNT_POLICY_NOT_ALLOWED` when the policy isn't an active one of the patient type.
+   - Double submit / retry: the form sends one `idempotency_key` per session. The same key from the same user returns the saved bill (200) and opens no second case; from another user, `IDEMPOTENCY_KEY_REUSED` (409).
+   - A Blood Bank bill needs `category_details.care_type` ("Care of"); any other bill refuses `category_details`.
+3. Bill List / print: `POST invoices/{billing}/print` (`sh.billing.print`) logs the print (`sh_print_logs`, `document_type = sh.invoice`) and returns an A4 PDF (provisional layout); a reprint needs a reason and is marked "REPRINT".
 
 ### 2. Open the case (patient register)
 
-1. `bb_cases`: `case_no` (`BC{yyMM}{000001}`, global, monthly reset), `patient_master_id`, `billing_id`, `branch_id` (session branch; lists and the case Policy are scoped to it), `care_type` (**"Care of"**: `daycare` = used in our daycare unit, `out` = takeaway), `transfusion_reason` (**"Cause of transfusion"**, nullable), `reference_note` (any other note), `status = open`, `created_by`.
-2. Requested components (**"Component"** column) → `bb_case_components`, one row per component type: `case_id`, `component_type_id`, `quantity` (e.g. PCV × 2 and FP × 1 are two rows). Unique per (case, component type).
+Opened by `OpenCaseForInvoice` when a Blood Bank bill is saved (audit `bb.case.opened`). If a case already has this `billing_id` it is returned instead.
+
+1. `bb_cases`: `case_no` (`BC{yyMM}{000001}`, global, monthly reset), `patient_master_id` and `branch_id` of the bill, `billing_id` (required, unique: one case per bill), `care_type` (**"Care of"** from the bill: `daycare` = used in our daycare unit, `out` = takeaway), `transfusion_reason` (**"Cause of transfusion"**, nullable), `reference_note` (any other note), `status = open`, `created_by`.
+2. Requested components (**"Component"** column) → `bb_case_components`, one row per billed line whose item is an active component type's `test_item_id`: `case_id`, `component_type_id`, `test_item_id`, `quantity` = the line quantity (e.g. PCV × 2 and FP × 1 are two rows). Unique per (case, component type). Other Blood Bank items (cross matching, screening) add no row.
+3. Case screen: `PATCH cases/{case}` (`UpdateCaseDetails`, `bb.case.update`, open case only, else `CASE_NOT_OPEN`) corrects `care_type` and records `transfusion_reason` / `reference_note`; audit `bb.case.details_updated` with old and new values.
 
 Patient details are **not copied** here; read them from `sh_patient_master`.
 
@@ -110,14 +123,14 @@ The same patient sample is used for the crossmatch against each unit (step 8).
 Skip steps 4–7 when the blood is supplied directly from storage; go to step 8 with a stock unit.
 
 1. Find or create the donor (a person, reused across cases) → `bb_donors`: `donor_no` (`D{yyMM}{000001}`, global, monthly reset; find returning donors with `GET /api/blood-bank/donors`), name, `father_name`, age/DOB, gender, `marital_status`, `religion`, `blood_group`, phone, `national_id`, `occupation` (free text), `is_regular_volunteer` (the form's "Would you like to be a regular voluntary donor?"; yes / no / not asked = null, updated each time they're asked).
-2. Attach them to this case → `bb_case_donors`: `case_id`, `donor_id`, `sequence_no` (1, 2, 3… per case), `status = registered`.
-3. Add a donor to an existing case (a replacement after a deferral, or one more). The "Add donor" page first opens the case with `GET add-donor?invoice_no=` (the case bill or an added donor's bill, session branch only, else `CASE_NOT_FOUND`), which returns the case detail; every donor row there has `invoice_no` (its own bill, or null for donors registered with the case). Then one donor per save → `POST cases/{case}/donors` (`AddCaseDonor`, permission `bb.case.create` for both), one transaction:
-   - Body: `invoice_no` (the vendor's invoice for the donor charge, alpha-numeric, max 30) and `donor_id` (returning donor, found with `GET donors/lookup?phone=`) **or** `donor` (new donor, registered in the same request).
-   - Shared bills it through `InvoiceIssuer::issueAdditional()`: a new `sh_billing` row under that invoice no (not generated), for the case's patient, with the case bill's referral copied, and one line of the fixed catalog item `BB-ADDL-DONOR` "Additional Donor Charge" (Tk 1000, inserted by a Shared migration, identified by code, rate snapshotted).
-   - **New** `bb_case_donors` row: next `sequence_no`, `status = registered`, `billing_id` = the new bill. Earlier rows keep their status (a deferred donor stays `deferred`).
-   - Audit `bb.case.donor_added` on `bb.case` (case no, donor, sequence, invoice no, amount); Shared audits the bill.
-   - Errors: `CASE_NOT_OPEN`, `DONOR_ALREADY_IN_CASE` (the person is already on this case, even deferred), `INVOICE_NO_TAKEN` (any bill, also a deleted one, has this number), `VALIDATION_FAILED`, `FORBIDDEN` (another branch's case). Returns the case detail (201).
-   - Scanning the new invoice no on the Sample Collection, Donor Examination or Donor Serology screen opens the case.
+2. Attach them to this case → `bb_case_donors`: `case_id`, `donor_id`, `sequence_no` (1, 2, 3… per case), `status = registered`, `billing_id` (the bill given for this donor).
+3. Every donor (the first ones and replacements alike) is added on the "Add donor" page. It first opens the case with `GET add-donor?invoice_no=` (the case bill or a donor's bill, session branch only, else `CASE_NOT_FOUND`), which returns the case detail with `invoice_no` on every donor row. Then one donor per save → `POST cases/{case}/donors` (`AddCaseDonor`, permission `bb.case.update` for both), one transaction:
+   - Body: `invoice_no` (required: a bill **already saved** in Billing, e.g. the case bill or a general bill for the `BB-ADDL-DONOR` charge) and `donor_id` (returning donor, found with `GET donors/lookup?phone=`) **or** `donor` (new donor, registered in the same request). Nothing is billed here, and what the bill contains is not checked.
+   - The bill must be this branch's (`INVOICE_NOT_IN_BRANCH`), active (`INVOICE_NOT_ACTIVE`), for the case's patient (`INVOICE_PATIENT_MISMATCH`) and not the bill of another case or of another case's donor (`INVOICE_LINKED_TO_OTHER_CASE`); unknown numbers give `INVOICE_NOT_FOUND`. Several donors of one case may share a bill.
+   - **New** `bb_case_donors` row: next `sequence_no`, `status = registered`, `billing_id` = that bill. Earlier rows keep their status (a deferred donor stays `deferred`).
+   - Audit `bb.case.donor_added` on `bb.case` (case no, donor, sequence, invoice no).
+   - Other errors: `CASE_NOT_OPEN`, `DONOR_ALREADY_IN_CASE` (the person is already on this case, even deferred), `VALIDATION_FAILED`, `FORBIDDEN` (another branch's case). Returns the case detail (201).
+   - Scanning a donor's invoice no on the Sample Collection, Donor Examination or Donor Serology screen opens the case.
 
 ### 5. Donor screening and eligibility
 
@@ -290,8 +303,8 @@ Not built yet: recording an incompatible crossmatch without issuing, returns / r
 |---|---|
 | Patient details | `sh_patient_master` |
 | Name of consultant | `sh_billing_referrals.doctor_id` |
-| Component | `bb_case_components` (type + quantity) |
-| Care of | `bb_cases.care_type` (`daycare` / `out`) |
+| Component | `bb_case_components` (type + quantity, from the billed component items) |
+| Care of | `bb_cases.care_type` (`daycare` / `out`), entered on the bill |
 | Cause of transfusion | `bb_cases.transfusion_reason` |
 | Supply time | `bb_cases.supplied_at` |
 | Blood group | `bb_test_results` on the patient sample |
@@ -319,7 +332,8 @@ Not built yet: recording an incompatible crossmatch without issuing, returns / r
 
 ## Decisions so far
 
-- `case_no` stays the case identifier; `invoice_no` is a search key only (a case can exist before billing, have several bills, or be rebilled).
+- `case_no` stays the case identifier and `invoice_no` a search key, but since 2026-11-09 every case is opened from exactly one Blood Bank bill (`bb_cases.billing_id` required and unique). Earlier decision "a case can exist before billing" is superseded. A wrong bill can't be edited or cancelled yet; it means a new bill (and case).
+- A case whose bill has no component item (only services) opens with no `bb_case_components` rows; map every component item to a component type.
 - Eligibility lives on `bb_case_donors` (no separate assessments table), decided twice: physical exam (`fit` / `deferred`), then serology (`eligible` / `deferred`). Both are manual physician inputs.
 - Donor serology has its own menu (not the Donor Examination form): different queue, time and place. Blood group is one combined result, and a reactive (or malaria found) screening result blocks Accept.
 - The crossmatch is patient sample × **unit**, not × donor, so units from storage (no donor brought) are covered.

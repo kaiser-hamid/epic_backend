@@ -9,15 +9,28 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Shared\Billing\Database\Factories\BillingItemFactory;
+use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 use Modules\Shared\TestCatalog\Models\TestItem;
 
 #[Table('sh_billing_items')]
-#[Fillable(['billing_id', 'test_item_id', 'quantity', 'rate', 'amount'])]
+#[Fillable([
+    'billing_id', 'test_item_id', 'category', 'quantity', 'rate', 'amount', 'discount_rate_bp', 'discount_amount', 'net_amount',
+])]
 #[UseFactory(BillingItemFactory::class)]
 final class BillingItem extends Model
 {
     /** @use HasFactory<BillingItemFactory> */
     use HasFactory;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'category' => TestItemCategory::class,
+        ];
+    }
 
     public function billing(): BelongsTo
     {

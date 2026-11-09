@@ -9,6 +9,8 @@ use Modules\BloodBank\Database\Seeders\ComponentTypeSeeder;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Rbac\Actions\SyncPermissionCatalog;
+use Modules\Shared\TestCatalog\Database\Seeders\DepartmentSeeder;
+use Modules\Shared\TestCatalog\Database\Seeders\TestItemSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -26,7 +28,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Blood Bank',
         ]);
 
-        $this->call(ComponentTypeSeeder::class);
+        $this->call([DepartmentSeeder::class, TestItemSeeder::class, ComponentTypeSeeder::class]);
 
         User::factory()->superAdmin()->mustChangePassword()->create([
             'employee_id' => 'EMP-0001',

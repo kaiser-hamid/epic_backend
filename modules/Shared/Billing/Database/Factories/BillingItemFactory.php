@@ -3,8 +3,10 @@
 namespace Modules\Shared\Billing\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Modules\Shared\Billing\Models\Billing;
 use Modules\Shared\Billing\Models\BillingItem;
 use Modules\Shared\TestCatalog\Database\Factories\TestItemFactory;
+use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 
 /**
  * @extends Factory<BillingItem>
@@ -23,7 +25,9 @@ final class BillingItemFactory extends Factory
             'test_item_id' => TestItemFactory::new(),
             'quantity' => 1,
             'rate' => 50000,
+            'category' => fn (array $attributes): TestItemCategory => Billing::query()->findOrFail($attributes['billing_id'])->category,
             'amount' => 50000,
+            'net_amount' => 50000,
         ];
     }
 }

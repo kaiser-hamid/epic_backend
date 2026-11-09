@@ -44,4 +44,11 @@ final class EloquentInvoiceDirectory implements InvoiceDirectory
     {
         return Billing::query()->where('invoice_no', $invoiceNo)->value('id');
     }
+
+    public function findByInvoiceNo(string $invoiceNo): ?InvoiceSummary
+    {
+        $billing = Billing::query()->with('referral.doctor')->where('invoice_no', $invoiceNo)->first();
+
+        return $billing === null ? null : InvoiceSummary::fromModel($billing);
+    }
 }

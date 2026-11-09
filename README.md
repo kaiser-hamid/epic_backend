@@ -62,9 +62,9 @@ The system is a **modular monolith**: one Laravel application, one PostgreSQL da
 
 | Module | Status | Notes |
 |---|---|---|
-| Shared (kernel) | In progress | Auth, RBAC, Audit, Patient master, Numbering, External references, Notification |
+| Shared (kernel) | In progress | Auth, RBAC, Audit, Patient master, Numbering, External references, Notification, Billing (bills, patient types and discount policies, bill print) |
 | Blood Bank | In progress | Donor → donation → unit → component → request → crossmatch → issue |
-| Registration & Billing | Planned | Currently handled by vendor system |
+| Registration & Billing | In progress | New Bill Entry / Bill List in Shared Billing; a Blood Bank bill opens its Blood Bank case through the `InvoiceCategoryHandler` contract. Edit / cancel and payments are planned; other bills are still in the vendor system |
 | Lab (Pathology) | Planned | Sample tracking, LIS integration, verify / authorize |
 | Radiology (Non-Lab) | Planned | ECG, X-ray, USG, CT scan reports |
 | Report Delivery | Planned | Merge lab + non-lab reports, delivery tracking |
@@ -340,7 +340,7 @@ Only explicitly allowed filters, sorts and includes are accepted.
 
 The existing vendor system has no API or database access. Until it is replaced:
 
-- Bills for Blood Bank are still created in the vendor system.
+- Blood Bank bills are entered in our New Bill Entry (Billing), typing the vendor's invoice no when the bill was already numbered there; saving one opens the Blood Bank case. Other bills are still created in the vendor system.
 - The vendor invoice barcode is scanned into our system and stored in `sh_external_references`:
 
   | Column | Example |

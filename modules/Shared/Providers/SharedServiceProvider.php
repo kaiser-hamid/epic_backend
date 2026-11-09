@@ -23,10 +23,10 @@ use Modules\Shared\Auth\Http\Middleware\EnsureSuperAdmin;
 use Modules\Shared\Auth\Http\Middleware\EnsureUserIsActive;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Auth\Services\BranchAwareDatabaseSessionHandler;
+use Modules\Shared\Billing\Actions\CreateInvoice;
+use Modules\Shared\Billing\Contracts\InvoiceCategoryHandler;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
-use Modules\Shared\Billing\Contracts\InvoiceIssuer;
 use Modules\Shared\Billing\Models\Billing;
-use Modules\Shared\Billing\Services\ActionInvoiceIssuer;
 use Modules\Shared\Billing\Services\EloquentInvoiceDirectory;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
 use Modules\Shared\Branch\Models\Branch;
@@ -62,7 +62,6 @@ final class SharedServiceProvider extends ServiceProvider
         CurrentBranch::class => SessionCurrentBranch::class,
         AccessChecker::class => BranchAccessChecker::class,
         NumberGenerator::class => DatabaseNumberGenerator::class,
-        InvoiceIssuer::class => ActionInvoiceIssuer::class,
         InvoiceDirectory::class => EloquentInvoiceDirectory::class,
         PatientDirectory::class => EloquentPatientDirectory::class,
     ];
@@ -73,6 +72,16 @@ final class SharedServiceProvider extends ServiceProvider
     public array $singletons = [
         PermissionRegistry::class => PermissionRegistry::class,
     ];
+
+    /**
+     * Modules that open their own record from a bill of their category tag an `InvoiceCategoryHandler`.
+     */
+    public function register(): void
+    {
+        $this->app->when(CreateInvoice::class)
+            ->needs('$categoryHandlers')
+            ->giveTagged(InvoiceCategoryHandler::TAG);
+    }
 
     public function boot(PermissionRegistry $permissions, Router $router): void
     {
@@ -88,6 +97,8 @@ final class SharedServiceProvider extends ServiceProvider
             __DIR__.'/../Audit/Database/Migrations',
             __DIR__.'/../Numbering/Database/Migrations',
         ]);
+
+        $this->loadViewsFrom(__DIR__.'/../Billing/Resources/views', 'billing');
 
         Relation::morphMap([
             'sh.user' => User::class,

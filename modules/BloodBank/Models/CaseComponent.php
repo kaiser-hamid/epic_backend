@@ -11,10 +11,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\BloodBank\Database\Factories\CaseComponentFactory;
 
 /**
- * A requested component for a case (e.g. 2 × PCV). Fulfilled by units of the same component type allocated to the case.
+ * A requested component for a case (e.g. 2 × PCV), taken from a line of the case's bill (`test_item_id`, the billed
+ * item). Fulfilled by units of the same component type allocated to the case.
  */
 #[Table('bb_case_components')]
-#[Fillable(['case_id', 'component_type_id', 'quantity'])]
+#[Fillable(['case_id', 'component_type_id', 'test_item_id', 'quantity'])]
 #[UseFactory(CaseComponentFactory::class)]
 final class CaseComponent extends Model
 {

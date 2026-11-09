@@ -22,7 +22,7 @@ it('finds the session branch\'s case by its invoice no or a replacement donor\'s
     $case = PatientCase::factory()->create(['branch_id' => $this->branch->id, 'billing_id' => $caseBill->id]);
     CaseDonor::factory()->create(['case_id' => $case->id, 'billing_id' => $replacementBill->id]);
     PatientCase::factory()->create(['branch_id' => $this->branch->id]);
-    PatientCase::factory()->create(['branch_id' => $this->otherBranch->id, 'billing_id' => $caseBill->id]);
+    CaseDonor::factory()->create(['case_id' => PatientCase::factory()->create(['branch_id' => $this->otherBranch->id])->id, 'billing_id' => $caseBill->id]);
 
     foreach (['NB2610280001', 'NB2610280007'] as $invoiceNo) {
         signInToBranch($this, $this->staff, $this->branch)

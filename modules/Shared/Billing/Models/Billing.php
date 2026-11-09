@@ -18,9 +18,13 @@ use Modules\Shared\Billing\Enums\BillingStatus;
 use Modules\Shared\Billing\Policies\BillingPolicy;
 use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Patient\Models\PatientMaster;
+use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 
 #[Table('sh_billing')]
-#[Fillable(['invoice_no', 'patient_master_id', 'branch_id', 'amount', 'status', 'billed_at', 'created_by'])]
+#[Fillable([
+    'invoice_no', 'idempotency_key', 'patient_master_id', 'branch_id', 'category', 'patient_type_id', 'subtotal_amount',
+    'discount_amount', 'rounding_amount', 'amount', 'status', 'billed_at', 'created_by',
+])]
 #[UseFactory(BillingFactory::class)]
 #[UsePolicy(BillingPolicy::class)]
 final class Billing extends Model
@@ -34,6 +38,7 @@ final class Billing extends Model
     protected function casts(): array
     {
         return [
+            'category' => TestItemCategory::class,
             'status' => BillingStatus::class,
             'billed_at' => 'datetime',
         ];
@@ -62,5 +67,15 @@ final class Billing extends Model
     public function referral(): HasOne
     {
         return $this->hasOne(BillingReferral::class, 'billing_id');
+    }
+
+    public function patientType(): BelongsTo
+    {
+        return $this->belongsTo(PatientType::class, 'patient_type_id');
+    }
+
+    public function discounts(): HasMany
+    {
+        return $this->hasMany(BillingDiscount::class, 'billing_id');
     }
 }

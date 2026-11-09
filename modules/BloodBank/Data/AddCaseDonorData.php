@@ -12,7 +12,8 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
- * A donor added to an existing case: the vendor's invoice number for the donor charge, and a returning donor
+ * A donor added to an existing case: the number of a bill already saved for the case's patient (required for
+ * every donor), and a returning donor
  * (`donor_id`, found by phone) or a new one (`donor`), never both. The donor properties have no default value so
  * the either/or rules run when both are missing.
  */

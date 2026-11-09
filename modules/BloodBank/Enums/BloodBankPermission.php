@@ -7,7 +7,7 @@ use Modules\Shared\Rbac\Contracts\PermissionDefinition;
 enum BloodBankPermission: string implements PermissionDefinition
 {
     case CaseView = 'bb.case.view';
-    case CaseCreate = 'bb.case.create';
+    case CaseUpdate = 'bb.case.update';
     case DonorView = 'bb.donor.view';
     case SampleView = 'bb.sample.view';
     case SampleCollect = 'bb.sample.collect';
@@ -49,7 +49,7 @@ enum BloodBankPermission: string implements PermissionDefinition
     {
         return match ($this) {
             self::CaseView => 'Search and view Blood Bank cases',
-            self::CaseCreate => 'Register a case: bill the patient, request components and register donors',
+            self::CaseUpdate => 'Edit a case\'s details (care of, cause of transfusion, note) and add donors to it',
             self::DonorView => 'Search and view donors',
             self::SampleView => 'Open the sample collection work list and search samples',
             self::SampleCollect => 'Collect patient and donor samples',

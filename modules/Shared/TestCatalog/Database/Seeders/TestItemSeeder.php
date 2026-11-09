@@ -4,13 +4,14 @@ namespace Modules\Shared\TestCatalog\Database\Seeders;
 
 use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Database\Seeder;
+use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 use Modules\Shared\TestCatalog\Models\Department;
 use Modules\Shared\TestCatalog\Models\TestItem;
 use RuntimeException;
 
 /**
  * 500 demo test items with realistic names and rates, coded per department (`HAEM-001`, `XRAY-012`), about
- * 1 in 30 inactive. Needs `DepartmentSeeder`. Skipped when the demo items exist (fixed items added by
+ * 1 in 30 inactive; the Blood Bank department's items are `blood_bank` items. Needs `DepartmentSeeder`. Skipped when the demo items exist (fixed items added by
  * migrations, such as `BB-ADDL-DONOR`, do not count).
  */
 final class TestItemSeeder extends Seeder
@@ -36,6 +37,7 @@ final class TestItemSeeder extends Seeder
                     'department_id' => $department->id,
                     'department_name' => $department->name,
                     'code' => sprintf('%s-%03d', $departmentCode, ++$serial),
+                    'category' => $departmentCode === 'BB' ? TestItemCategory::BloodBank : TestItemCategory::General,
                     'name' => $name,
                     'rate' => $rateInTaka * 100,
                 ];
@@ -52,7 +54,7 @@ final class TestItemSeeder extends Seeder
             ->count(self::COUNT)
             ->state(new Sequence(fn (Sequence $sequence): array => [
                 ...$items[$sequence->index],
-                'is_active' => fake()->boolean(97),
+                'is_active' => $items[$sequence->index]['category'] === TestItemCategory::BloodBank || fake()->boolean(97),
             ]))
             ->create();
     }
@@ -167,7 +169,8 @@ final class TestItemSeeder extends Seeder
                 'Direct Coombs Test' => 600, 'Indirect Coombs Test' => 600, 'Whole Blood Processing' => 1200,
                 'Packed Red Cells' => 1500, 'Fresh Frozen Plasma' => 1200, 'Platelet Concentrate' => 1500,
                 'Cryoprecipitate' => 1500, 'Apheresis Platelet' => 20000, 'Donor Screening Panel' => 1500,
-                'Du Test' => 400, 'Antibody Titre' => 1500, 'Blood Bag Charge' => 600,
+                'Du Test' => 400, 'Antibody Titre' => 1500, 'Blood Bag Charge' => 600, 'Plasma' => 1000,
+                'Cryo-poor Plasma' => 1000,
             ],
             'XRAY' => [
                 'X-Ray Chest P/A View' => 500, 'X-Ray Chest Lateral View' => 500,
