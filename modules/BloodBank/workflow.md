@@ -227,7 +227,7 @@ Where each part of the report comes from (nothing is copied):
 | Patient ABO, Rh | patient sample's `bb_test_results` |
 | Cause of transfusion | `bb_cases.transfusion_reason` |
 | Donor name, age, sex, ABO, Rh | `bb_units` → `bb_collections` → `bb_case_donors` → `bb_donors`, and the donor sample's `bb_test_results` |
-| Screening tests, method, result | donor sample's `bb_test_results` + `bb_test_definitions.method` |
+| Screening tests, method, result | donor sample's `bb_test_results` + `bb_test_definitions.method`; every screening test is listed, with a blank result when the donor was screened before the test was added (e.g. Malarial Parasite) |
 | Compatibility with donor | `bb_crossmatches.major_result` / `minor_result` |
 | Medical Technologist, Physician | `tested_by`, `reviewed_by` |
 

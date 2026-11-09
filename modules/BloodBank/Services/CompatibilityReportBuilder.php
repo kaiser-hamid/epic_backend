@@ -91,7 +91,7 @@ final class CompatibilityReportBuilder
                     'name' => $test['name'],
                     'method' => $test['method'],
                     'result' => $test['result'] === null ? null : SerologyTest::from($test['code'])->resultLabel($test['result']),
-                ], $this->screeningResults->forCaseDonor($collection->caseDonor)),
+                ], $this->screeningResults->forCaseDonor($collection->caseDonor, includeUntested: true)),
                 'compatibility' => $crossmatch->isCompatible()
                     ? 'Compatible (Major/Minor)'
                     : 'Major: '.$crossmatch->major_result->label().', Minor: '.$crossmatch->minor_result->label(),
