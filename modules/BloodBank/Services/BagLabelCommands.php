@@ -110,7 +110,7 @@ final class BagLabelCommands
     {
         return [
             'V03' => $patient?->name ?? '',
-            'V04' => $patient === null ? '' : $this->age($patient),
+            'V04' => $patient?->ageLabel() ?? '',
             'V05' => match ($patient?->gender) {
                 Gender::Male => 'M',
                 Gender::Female => 'F',
@@ -118,16 +118,6 @@ final class BagLabelCommands
                 null => '',
             },
         ];
-    }
-
-    private function age(PatientSummary $patient): string
-    {
-        return match (true) {
-            ($patient->ageYears ?? 0) > 0 => $patient->ageYears.'Y',
-            ($patient->ageMonths ?? 0) > 0 => $patient->ageMonths.'M',
-            $patient->ageDays !== null => $patient->ageDays.'D',
-            default => '',
-        };
     }
 
     private function bloodGroup(?BloodGroup $bloodGroup): string

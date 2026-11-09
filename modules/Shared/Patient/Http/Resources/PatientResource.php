@@ -5,6 +5,7 @@ namespace Modules\Shared\Patient\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Shared\Patient\Models\PatientMaster;
+use Modules\Shared\Patient\Services\AgeLabel;
 
 /**
  * @mixin PatientMaster
@@ -27,6 +28,7 @@ final class PatientResource extends JsonResource
             'age_years' => $age['years'],
             'age_months' => $age['months'],
             'age_days' => $age['days'],
+            'age_label' => AgeLabel::format($age['years'], $age['months'], $age['days']),
             'date_of_birth' => $this->date_of_birth?->toDateString(),
             'gender' => $this->gender?->value,
             'marital_status' => $this->marital_status?->value,

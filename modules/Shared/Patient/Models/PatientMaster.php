@@ -16,6 +16,7 @@ use Modules\Shared\Patient\Enums\BloodGroup;
 use Modules\Shared\Patient\Enums\Gender;
 use Modules\Shared\Patient\Enums\MaritalStatus;
 use Modules\Shared\Patient\Enums\PatientTitle;
+use Modules\Shared\Patient\Services\AgeLabel;
 
 #[Table('sh_patient_master')]
 #[Fillable(['patient_no', 'title', 'name', 'address', 'age_years', 'age_months', 'age_days', 'date_of_birth', 'gender', 'marital_status', 'blood_group', 'phone', 'national_id', 'created_by'])]
@@ -59,5 +60,15 @@ final class PatientMaster extends Model
         $age = $this->date_of_birth->toImmutable()->startOfDay()->diff(CarbonImmutable::today());
 
         return ['years' => $age->y, 'months' => $age->m, 'days' => $age->d];
+    }
+
+    /**
+     * The current age as shown everywhere: "78Y", "5M" or "22D" (see AgeLabel).
+     */
+    public function ageLabel(): ?string
+    {
+        $age = $this->currentAge();
+
+        return AgeLabel::format($age['years'], $age['months'], $age['days']);
     }
 }

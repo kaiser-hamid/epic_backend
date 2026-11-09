@@ -9,7 +9,7 @@ use Modules\BloodBank\Enums\SampleSubject;
 
 /**
  * Who a sample is drawn from, in one shape for the patient and donors: `number` is the patient no or donor no,
- * `age` is in years. The `case_donor_*` and `sequence_no` fields are null for the patient.
+ * `age` is in years and `age_label` is the age as shown everywhere ("78Y", "5M", "22D"). The `case_donor_*` and `sequence_no` fields are null for the patient.
  *
  * @property-read SubjectView $resource
  */
@@ -33,6 +33,7 @@ final class SubjectResource extends JsonResource
                 'number' => $donor?->donor_no,
                 'name' => $donor?->name,
                 'age' => $donor?->currentAge(),
+                'age_label' => $donor?->ageLabel(),
                 'gender' => $donor?->gender?->value,
                 'blood_group' => $donor?->blood_group?->value,
                 'phone' => $donor?->phone,
@@ -49,6 +50,7 @@ final class SubjectResource extends JsonResource
             'number' => $patient?->patientNo,
             'name' => $patient?->name,
             'age' => $patient?->ageYears,
+            'age_label' => $patient?->ageLabel(),
             'gender' => $patient?->gender?->value,
             'blood_group' => $patient?->bloodGroup?->value,
             'phone' => $patient?->phone,

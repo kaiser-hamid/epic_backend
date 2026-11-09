@@ -34,6 +34,7 @@ Route → Controller → Data object (laravel-data validates) → permission che
 - No generic repository layer; use Eloquent directly.
 - `env()` only inside `config/`.
 - Money is integer paisa (`bigint`), never float. Totals are always computed server-side.
+- Age is shown everywhere (screens, labels, reports, bills) as its largest unit only: `78Y`; under a year `5M`; under a month `22D`. Always format it with `Modules\Shared\Patient\Services\AgeLabel` (or `PatientMaster::ageLabel()`, `PatientSummary::ageLabel()`, `Donor::ageLabel()`); never build an age string by hand. Resources that show an age send it as `age_label`.
 - Timezone is `Asia/Dhaka`. `Model::shouldBeStrict()` is on outside production.
 
 ## API

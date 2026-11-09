@@ -17,6 +17,7 @@ use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Patient\Enums\BloodGroup;
 use Modules\Shared\Patient\Enums\Gender;
 use Modules\Shared\Patient\Enums\MaritalStatus;
+use Modules\Shared\Patient\Services\AgeLabel;
 
 #[Table('bb_donors')]
 #[Fillable(['donor_no', 'name', 'father_name', 'date_of_birth', 'age', 'gender', 'marital_status', 'religion', 'blood_group', 'phone', 'address', 'national_id', 'occupation', 'is_regular_volunteer', 'created_by'])]
@@ -68,5 +69,13 @@ final class Donor extends Model
         }
 
         return $this->age + (int) $this->created_at->toImmutable()->startOfDay()->diffInYears($today);
+    }
+
+    /**
+     * The current age as shown everywhere: "34Y" (see AgeLabel).
+     */
+    public function ageLabel(): ?string
+    {
+        return AgeLabel::format($this->currentAge());
     }
 }

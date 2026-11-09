@@ -71,13 +71,13 @@ final class SampleLabelCommands
     {
         $donor = $view->subject->caseDonor?->donor;
         $gender = $donor !== null ? $donor->gender : $view->subject->patient?->gender;
-        $age = $donor !== null ? $donor->currentAge() : $view->subject->patient?->ageYears;
+        $age = $donor !== null ? $donor->ageLabel() : $view->subject->patient?->ageLabel();
 
         return match ($gender) {
             Gender::Male => 'M',
             Gender::Female => 'F',
             Gender::Other => 'O',
             null => '',
-        }.'-'.($age === null ? '' : $age.'Y');
+        }.'-'.($age ?? '');
     }
 }

@@ -4,7 +4,6 @@ namespace Modules\BloodBank\Services;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Support\Str;
 use Modules\BloodBank\Enums\SerologyTest;
 use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Models\Crossmatch;
@@ -64,7 +63,7 @@ final class CompatibilityReportBuilder
                 'patient' => [
                     'name' => $patient === null ? null : mb_strtoupper(trim(($patient->title?->label() ?? '').' '.$patient->name)),
                     'gender' => $patient?->gender?->label(),
-                    'age' => $patient === null ? null : $this->age($patient->ageYears, $patient->ageMonths, $patient->ageDays),
+                    'age' => $patient?->ageLabel(),
                     'phone' => $patient?->phone,
                     'abo' => $patientBloodGroup?->abo(),
                     'rh' => $patientBloodGroup?->rhesus(),
@@ -82,7 +81,7 @@ final class CompatibilityReportBuilder
                 'collected_by' => $collection->collector->name,
                 'donor' => [
                     'name' => mb_strtoupper($donor->name),
-                    'age' => $this->age($donor->currentAge()),
+                    'age' => $donor->ageLabel(),
                     'gender' => $donor->gender?->label(),
                     'abo' => $unit->blood_group?->abo(),
                     'rh' => $unit->blood_group?->rhesus(),
@@ -134,13 +133,4 @@ final class CompatibilityReportBuilder
     /**
      * An age as printed on the report: "35 Years", or months / days for an infant.
      */
-    private function age(?int $years, ?int $months = null, ?int $days = null): ?string
-    {
-        return match (true) {
-            (bool) $years => $years.' '.Str::plural('Year', $years),
-            (bool) $months => $months.' '.Str::plural('Month', $months),
-            (bool) $days => $days.' '.Str::plural('Day', $days),
-            default => null,
-        };
-    }
 }

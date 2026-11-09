@@ -7,6 +7,7 @@ use Modules\Shared\Patient\Enums\BloodGroup;
 use Modules\Shared\Patient\Enums\Gender;
 use Modules\Shared\Patient\Enums\PatientTitle;
 use Modules\Shared\Patient\Models\PatientMaster;
+use Modules\Shared\Patient\Services\AgeLabel;
 use Spatie\LaravelData\Attributes\MapName;
 use Spatie\LaravelData\Attributes\WithTransformer;
 use Spatie\LaravelData\Data;
@@ -35,21 +36,34 @@ final class PatientSummary extends Data
         public ?string $address,
     ) {}
 
+    /**
+     * The age is as of today (see PatientMaster::currentAge()).
+     */
     public static function fromModel(PatientMaster $patient): self
     {
+        $age = $patient->currentAge();
+
         return new self(
             id: $patient->id,
             patientNo: $patient->patient_no,
             title: $patient->title,
             name: $patient->name,
-            ageYears: $patient->age_years,
-            ageMonths: $patient->age_months,
-            ageDays: $patient->age_days,
+            ageYears: $age['years'],
+            ageMonths: $age['months'],
+            ageDays: $age['days'],
             dateOfBirth: $patient->date_of_birth?->toImmutable(),
             gender: $patient->gender,
             bloodGroup: $patient->blood_group,
             phone: $patient->phone,
             address: $patient->address,
         );
+    }
+
+    /**
+     * The age as shown everywhere: "78Y", "5M" or "22D" (see AgeLabel).
+     */
+    public function ageLabel(): ?string
+    {
+        return AgeLabel::format($this->ageYears, $this->ageMonths, $this->ageDays);
     }
 }
