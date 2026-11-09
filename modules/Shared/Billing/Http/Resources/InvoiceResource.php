@@ -9,7 +9,8 @@ use Modules\Shared\Patient\Http\Resources\PatientResource;
 
 /**
  * A bill. Money is integer paisa: `subtotal_amount` − `discount_amount` + `rounding_amount` = `amount` (payable).
- * `discount` is the policy snapshot the bill applied, or null.
+ * `discount` is the policy snapshot the bill applied, or null. `paid_amount` was paid at the counter and
+ * `due_amount` = `amount` − `paid_amount`. `delivery_at` is null only on bills saved before it existed.
  *
  * @mixin Billing
  */
@@ -41,7 +42,10 @@ final class InvoiceResource extends JsonResource
             'discount_amount' => $this->discount_amount,
             'rounding_amount' => $this->rounding_amount,
             'amount' => $this->amount,
+            'paid_amount' => $this->paid_amount,
+            'due_amount' => $this->dueAmount(),
             'billed_at' => $this->billed_at->toIso8601String(),
+            'delivery_at' => $this->delivery_at?->toIso8601String(),
             'patient' => PatientResource::make($this->whenLoaded('patient')),
             'referral' => InvoiceReferralResource::make($this->whenLoaded('referral')),
             'items' => InvoiceItemResource::collection($this->whenLoaded('items')),

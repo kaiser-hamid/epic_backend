@@ -23,7 +23,7 @@ use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 #[Table('sh_billing')]
 #[Fillable([
     'invoice_no', 'idempotency_key', 'patient_master_id', 'branch_id', 'category', 'patient_type_id', 'subtotal_amount',
-    'discount_amount', 'rounding_amount', 'amount', 'status', 'billed_at', 'created_by',
+    'discount_amount', 'rounding_amount', 'amount', 'paid_amount', 'status', 'billed_at', 'delivery_at', 'created_by',
 ])]
 #[UseFactory(BillingFactory::class)]
 #[UsePolicy(BillingPolicy::class)]
@@ -41,7 +41,16 @@ final class Billing extends Model
             'category' => TestItemCategory::class,
             'status' => BillingStatus::class,
             'billed_at' => 'datetime',
+            'delivery_at' => 'datetime',
         ];
+    }
+
+    /**
+     * What is still owed on the bill, in paisa.
+     */
+    public function dueAmount(): int
+    {
+        return $this->amount - $this->paid_amount;
     }
 
     public function patient(): BelongsTo

@@ -7,22 +7,21 @@ use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Billing\Data\PrintInvoiceData;
 use Modules\Shared\Billing\Enums\BillingPrintDocumentType;
 use Modules\Shared\Billing\Models\Billing;
-use Modules\Shared\Billing\Queries\ShowInvoice;
-use Modules\Shared\Printing\Contracts\PdfRenderer;
+use Modules\Shared\Billing\Services\InvoicePrintBuilder;
 use Modules\Shared\Printing\Contracts\PrintLogger;
 use Modules\Shared\Printing\Data\PdfDocument;
 use Modules\Shared\Printing\Exceptions\ReprintReasonRequired;
 
 /**
- * Prints a bill as an A4 PDF and logs the print; a reprint needs a reason and is marked "REPRINT". The PDF is
- * rendered inside the transaction, so a failed render logs nothing.
+ * Prints a bill (Customer Copy plus a Non Lab Copy per department) and logs the print. The first print is the
+ * "Original Copy"; every later one is a "Duplicate Copy" and needs a reason. The PDF is rendered inside the
+ * transaction, so a failed render logs nothing.
  */
 final class PrintInvoice
 {
     public function __construct(
         private readonly PrintLogger $printLogger,
-        private readonly PdfRenderer $pdfRenderer,
-        private readonly ShowInvoice $showInvoice,
+        private readonly InvoicePrintBuilder $builder,
     ) {}
 
     /**
@@ -33,14 +32,7 @@ final class PrintInvoice
         return DB::transaction(function () use ($actor, $billing, $data): PdfDocument {
             $printLog = $this->printLogger->record(BillingPrintDocumentType::Invoice, $billing, $actor, $data->reprintReason);
 
-            $content = $this->pdfRenderer->render('billing::invoice', [
-                'billing' => $this->showInvoice->get($billing),
-                'isReprint' => $printLog->is_reprint,
-                'printedBy' => $actor->name,
-                'printedAt' => now(),
-            ]);
-
-            return new PdfDocument($content, "INV-{$billing->invoice_no}.pdf");
+            return $this->builder->build($billing, isDuplicate: $printLog->is_reprint);
         });
     }
 }

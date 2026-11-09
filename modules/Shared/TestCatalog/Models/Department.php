@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Shared\TestCatalog\Database\Factories\DepartmentFactory;
 
 #[Table('sh_departments')]
-#[Fillable(['code', 'name', 'is_active'])]
+#[Fillable(['code', 'name', 'room_no', 'is_active'])]
 #[UseFactory(DepartmentFactory::class)]
 final class Department extends Model
 {

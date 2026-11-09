@@ -6,7 +6,8 @@ use Illuminate\Database\Seeder;
 use Modules\Shared\TestCatalog\Models\Department;
 
 /**
- * The diagnostic departments test items are grouped under. Matched on `code`, so it is safe to re-run.
+ * The diagnostic departments test items are grouped under, with the rooms known so far (printed on the bill's
+ * Non Lab Copy). Matched on `code`, so it is safe to re-run.
  */
 final class DepartmentSeeder extends Seeder
 {
@@ -35,8 +36,14 @@ final class DepartmentSeeder extends Seeder
             'PFT' => 'Pulmonary Function Test',
         ];
 
+        $rooms = ['BB' => '900'];
+
         foreach ($departments as $code => $name) {
-            Department::query()->updateOrCreate(['code' => $code], ['name' => $name, 'is_active' => true]);
+            Department::query()->updateOrCreate(['code' => $code], [
+                'name' => $name,
+                'is_active' => true,
+                ...(isset($rooms[$code]) ? ['room_no' => $rooms[$code]] : []),
+            ]);
         }
     }
 }

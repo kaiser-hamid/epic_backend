@@ -22,7 +22,8 @@ beforeEach(function () {
 });
 
 /**
- * Posts a bill under the "General Patient" type with a fresh idempotency key, unless the payload sets them.
+ * Posts a bill under the "General Patient" type with a fresh idempotency key, nothing paid and delivery later
+ * today, unless the payload sets them.
  *
  * @param  array<string, mixed>  $payload
  */
@@ -31,6 +32,8 @@ function createInvoice(TestCase $test, array $payload): TestResponse
     return signInToBranch($test, $test->cashier, $test->branch)->postJson('/api/billing/invoices', [
         'idempotency_key' => (string) Str::uuid(),
         'patient_type_id' => PatientType::where('code', PatientType::GENERAL)->value('id'),
+        'delivery_at' => now()->toIso8601String(),
+        'paid_amount' => 0,
         ...$payload,
     ]);
 }
@@ -87,6 +90,8 @@ it('keeps a separate invoice counter for each branch', function () {
         ->postJson('/api/billing/invoices', [
             'idempotency_key' => (string) Str::uuid(),
             'patient_type_id' => PatientType::where('code', PatientType::GENERAL)->value('id'),
+            'delivery_at' => now()->toIso8601String(),
+            'paid_amount' => 0,
             ...$payload(),
         ])
         ->assertJsonPath('data.invoice_no', "{$otherBranch->code}2610280001");
@@ -171,6 +176,12 @@ it('returns 422 VALIDATION_FAILED for an invalid bill', function (Closure $paylo
         'items' => [['test_item_id' => TestItem::factory()->create()->id]],
         'referral' => ['is_self_referral' => true, 'doctor_id' => Doctor::factory()->create()->id],
     ], 'referral.doctor_id'],
+    'delivery before today' => [fn () => [
+        'patient_id' => PatientMaster::factory()->create()->id,
+        'items' => [['test_item_id' => TestItem::factory()->create()->id]],
+        'referral' => ['is_self_referral' => true],
+        'delivery_at' => now()->subDay()->toIso8601String(),
+    ], 'delivery_at'],
 ]);
 
 it('returns 403 FORBIDDEN without the billing permission', function () {
@@ -213,7 +224,12 @@ it('returns the bill already saved when the same form is submitted again, and re
     grantInBranch($otherCashier, $this->branch, SharedPermission::BillingCreate);
 
     signInToBranch($this, $otherCashier, $this->branch)
-        ->postJson('/api/billing/invoices', [...$payload, 'patient_type_id' => PatientType::where('code', PatientType::GENERAL)->value('id')])
+        ->postJson('/api/billing/invoices', [
+            ...$payload,
+            'patient_type_id' => PatientType::where('code', PatientType::GENERAL)->value('id'),
+            'delivery_at' => now()->toIso8601String(),
+            'paid_amount' => 0,
+        ])
         ->assertConflict()
         ->assertJson(['code' => 'IDEMPOTENCY_KEY_REUSED']);
 });
@@ -228,6 +244,26 @@ it('uses a typed vendor invoice number, which must be unused', function () {
 
     createInvoice($this, $payload())->assertCreated()->assertJsonPath('data.invoice_no', 'VND12345');
     createInvoice($this, $payload())->assertUnprocessable()->assertJson(['code' => 'INVOICE_NO_TAKEN']);
+});
+
+it('records what was paid against the server\'s payable and when the reports will be delivered', function () {
+    $testItem = TestItem::factory()->discountPercent(0)->create(['rate' => 150000]);
+    $payload = fn (int $paidAmount) => [
+        'patient_id' => PatientMaster::factory()->create()->id,
+        'items' => [['test_item_id' => $testItem->id]],
+        'referral' => ['is_self_referral' => true],
+        'delivery_at' => '2026-11-09T19:00:00+06:00',
+        'paid_amount' => $paidAmount,
+    ];
+    $this->travelTo(now()->setDate(2026, 11, 9)->setTime(9, 44));
+
+    createInvoice($this, $payload(150001))->assertUnprocessable()->assertJson(['code' => 'PAID_AMOUNT_EXCEEDS_PAYABLE']);
+    expect(Billing::count())->toBe(0);
+
+    createInvoice($this, $payload(100000))->assertCreated()
+        ->assertJsonPath('data.paid_amount', 100000)
+        ->assertJsonPath('data.due_amount', 50000)
+        ->assertJsonPath('data.delivery_at', '2026-11-09T19:00:00+06:00');
 });
 
 it('refuses category details on a bill whose category takes none', function () {

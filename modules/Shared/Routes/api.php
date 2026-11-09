@@ -94,5 +94,6 @@ Route::prefix('billing')->name('billing.')->middleware(['erp.auth', 'erp.passwor
     Route::post('invoices/quote', [InvoiceController::class, 'quote'])->middleware('can:sh.billing.create')->name('invoices.quote');
     Route::get('patient-types', [PatientTypeController::class, 'index'])->middleware('can:sh.billing.create')->name('patient-types.index');
     Route::get('invoices/{billing}', [InvoiceController::class, 'show'])->middleware('can:view,billing')->name('invoices.show');
+    Route::get('invoices/{billing}/preview', [InvoiceController::class, 'preview'])->middleware('can:view,billing')->name('invoices.preview');
     Route::post('invoices/{billing}/print', [InvoiceController::class, 'print'])->middleware('can:print,billing')->name('invoices.print');
 });

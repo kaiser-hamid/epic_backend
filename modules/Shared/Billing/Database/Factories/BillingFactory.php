@@ -31,8 +31,10 @@ final class BillingFactory extends Factory
             'patient_type_id' => fn (): int => PatientType::query()->where('code', PatientType::GENERAL)->value('id'),
             'subtotal_amount' => 0,
             'amount' => 0,
+            'paid_amount' => 0,
             'status' => BillingStatus::Active,
             'billed_at' => now(),
+            'delivery_at' => now()->addHours(6),
             'created_by' => User::factory(),
         ];
     }

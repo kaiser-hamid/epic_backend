@@ -20,6 +20,7 @@ use Modules\Shared\Billing\Exceptions\DiscountPolicyNotAllowed;
 use Modules\Shared\Billing\Exceptions\IdempotencyKeyReused;
 use Modules\Shared\Billing\Exceptions\InvoiceCategoryMixed;
 use Modules\Shared\Billing\Exceptions\InvoiceNoTaken;
+use Modules\Shared\Billing\Exceptions\PaidAmountExceedsPayable;
 use Modules\Shared\Billing\Models\Billing;
 use Modules\Shared\Billing\Queries\ShowInvoice;
 use Modules\Shared\Billing\Services\InvoiceNumber;
@@ -64,6 +65,7 @@ final class CreateInvoice
      * @throws InvoiceCategoryMixed
      * @throws DiscountPolicyNotAllowed
      * @throws InvoiceNoTaken
+     * @throws PaidAmountExceedsPayable
      * @throws ValidationException
      */
     public function handle(User $actor, CreateInvoiceData $data): Billing
@@ -77,6 +79,11 @@ final class CreateInvoice
         }
 
         $priced = $this->pricer->price($data->items, $data->patientTypeId, $data->discountPolicyId);
+
+        if ($data->paidAmount > $priced->totals->amount) {
+            throw new PaidAmountExceedsPayable;
+        }
+
         $handler = $this->handlerFor($priced->category);
         $details = $this->categoryDetails($handler, $data->categoryDetails);
 
@@ -121,8 +128,10 @@ final class CreateInvoice
             'discount_amount' => $totals->discountAmount,
             'rounding_amount' => $totals->roundingAmount,
             'amount' => $totals->amount,
+            'paid_amount' => $data->paidAmount,
             'status' => BillingStatus::Active,
             'billed_at' => now(),
+            'delivery_at' => $data->deliveryAt,
             'created_by' => $actor->id,
         ]);
 
@@ -151,7 +160,7 @@ final class CreateInvoice
         }
 
         $this->auditLogger->record(AuditAction::InvoiceCreated, $billing, newValues: [
-            ...$billing->only(['invoice_no', 'patient_master_id', 'category', 'patient_type_id', 'subtotal_amount', 'discount_amount', 'rounding_amount', 'amount']),
+            ...$billing->only(['invoice_no', 'patient_master_id', 'category', 'patient_type_id', 'subtotal_amount', 'discount_amount', 'rounding_amount', 'amount', 'paid_amount', 'delivery_at']),
             'discount_policy' => $priced->discountPolicy?->only(['id', 'name', 'rate_bp']),
             'items' => $lines,
             'referral' => $data->referral->toArray(),

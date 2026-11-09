@@ -27,6 +27,8 @@ beforeEach(function () {
         ->postJson('/api/billing/invoices', [
             'idempotency_key' => (string) Str::uuid(),
             'patient_type_id' => PatientType::where('code', PatientType::GENERAL)->value('id'),
+            'delivery_at' => now()->toIso8601String(),
+            'paid_amount' => 0,
             'patient_id' => PatientMaster::factory()->create()->id,
             'referral' => ['is_self_referral' => true],
             ...$payload,

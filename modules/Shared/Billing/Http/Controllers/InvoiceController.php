@@ -5,6 +5,7 @@ namespace Modules\Shared\Billing\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Shared\Billing\Actions\CreateInvoice;
+use Modules\Shared\Billing\Actions\PreviewInvoice;
 use Modules\Shared\Billing\Actions\PrintInvoice;
 use Modules\Shared\Billing\Data\CreateInvoiceData;
 use Modules\Shared\Billing\Data\PrintInvoiceData;
@@ -25,6 +26,7 @@ final class InvoiceController
         private readonly CreateInvoice $createInvoice,
         private readonly QuoteInvoice $quoteInvoice,
         private readonly PrintInvoice $printInvoice,
+        private readonly PreviewInvoice $previewInvoice,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -48,6 +50,11 @@ final class InvoiceController
     public function show(Billing $billing): InvoiceResource
     {
         return InvoiceResource::make($this->showInvoice->get($billing));
+    }
+
+    public function preview(Billing $billing): PdfDocument
+    {
+        return $this->previewInvoice->handle($billing);
     }
 
     public function print(Request $request, Billing $billing, PrintInvoiceData $data): PdfDocument
