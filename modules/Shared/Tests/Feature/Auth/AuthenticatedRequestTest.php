@@ -65,3 +65,16 @@ it('ends the session on logout', function () {
 
     $this->assertGuest('web');
 });
+
+it('accepts a digit-only new password but rejects special characters when users change their own', function (string $password, bool $valid) {
+    $response = signInToBranch($this, $this->user, $this->branch)->putJson('/api/auth/password', [
+        'current_password' => 'password',
+        'password' => $password,
+        'password_confirmation' => $password,
+    ]);
+
+    $valid ? $response->assertNoContent() : $response->assertJsonValidationErrors(['password']);
+})->with([
+    'digits' => ['1234567890', true],
+    'special' => ['NewSecret#2026', false],
+]);

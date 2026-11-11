@@ -22,7 +22,7 @@ final class StaffResource extends JsonResource
             'id' => $this->id,
             'employee_id' => $this->employee_id,
             'name' => $this->name,
-            'designation' => $this->designation,
+            'designation' => $this->designation?->value,
         ];
     }
 }

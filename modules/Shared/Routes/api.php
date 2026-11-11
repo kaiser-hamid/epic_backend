@@ -11,6 +11,7 @@ use Modules\Shared\Auth\Http\Controllers\UserController;
 use Modules\Shared\Billing\Http\Controllers\InvoiceController;
 use Modules\Shared\Billing\Http\Controllers\PatientTypeController;
 use Modules\Shared\Branch\Http\Controllers\BranchController;
+use Modules\Shared\Branch\Http\Controllers\BranchOptionController;
 use Modules\Shared\Doctor\Http\Controllers\DoctorController;
 use Modules\Shared\Patient\Http\Controllers\PatientController;
 use Modules\Shared\Rbac\Http\Controllers\PermissionController;
@@ -55,6 +56,8 @@ Route::prefix('access')->name('access.')->middleware(['erp.auth', 'erp.password-
 
     Route::get('users/{user}/branch-permissions', [UserBranchPermissionController::class, 'index'])->middleware('can:sh.user.view')->name('users.branch-permissions.index');
     Route::put('users/{user}/branches/{branch}/permissions', [UserBranchPermissionController::class, 'update'])->middleware('can:sh.user.assign_permissions')->name('users.branch-permissions.update');
+
+    Route::get('branch-options', BranchOptionController::class)->middleware('can:sh.user.assign_permissions')->name('branch-options.index');
 
     Route::get('permissions', PermissionController::class)->middleware('can:sh.role.view')->name('permissions.index');
 

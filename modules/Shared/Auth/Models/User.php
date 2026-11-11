@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Modules\Shared\Auth\Database\Factories\UserFactory;
+use Modules\Shared\Auth\Enums\Designation;
 use Modules\Shared\Rbac\Models\UserBranchPermission;
 
 /**
@@ -33,6 +34,7 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'designation' => Designation::class,
             'is_active' => 'boolean',
             'is_super_admin' => 'boolean',
             'last_login_at' => 'datetime',

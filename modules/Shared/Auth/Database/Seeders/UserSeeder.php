@@ -4,6 +4,7 @@ namespace Modules\Shared\Auth\Database\Seeders;
 
 use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Database\Seeder;
+use Modules\Shared\Auth\Enums\Designation;
 use Modules\Shared\Auth\Models\User;
 
 /**
@@ -20,7 +21,7 @@ final class UserSeeder extends Seeder
             return;
         }
 
-        $designations = ['Receptionist', 'Cashier', 'Lab Technician', 'Medical Technologist', 'Blood Bank Technician', 'Phlebotomist', 'Pathologist', 'Medical Officer', 'Nurse', 'Lab Manager'];
+        $designations = Designation::cases();
 
         User::factory()
             ->count(self::COUNT)

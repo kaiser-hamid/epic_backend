@@ -26,9 +26,9 @@ final class UpdateUser
         $this->accountGuard->ensureNotProtected($actor, $user);
 
         return DB::transaction(function () use ($user, $data): User {
-            $user->fill(Arr::only($data->toArray(), ['employee_id', 'name', 'username', 'designation', 'phone']));
+            $user->fill(Arr::only($data->toArray(), ['name', 'designation', 'phone']));
             $changes = $user->getDirty();
-            $original = Arr::only($user->getOriginal(), array_keys($changes));
+            $original = Arr::only($user->getRawOriginal(), array_keys($changes));
 
             if ($changes !== []) {
                 $user->save();

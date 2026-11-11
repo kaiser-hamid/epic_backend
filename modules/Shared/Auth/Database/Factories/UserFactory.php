@@ -2,10 +2,11 @@
 
 namespace Modules\Shared\Auth\Database\Factories;
 
-use Modules\Shared\Auth\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Modules\Shared\Auth\Enums\Designation;
+use Modules\Shared\Auth\Models\User;
 
 /**
  * @extends Factory<User>
@@ -27,7 +28,7 @@ class UserFactory extends Factory
         return [
             'employee_id' => fake()->unique()->numerify('EMP-####'),
             'name' => fake()->name(),
-            'designation' => fake()->jobTitle(),
+            'designation' => fake()->randomElement(Designation::cases()),
             'username' => fake()->unique()->userName(),
             'phone' => fake()->numerify('01#########'),
             'password' => static::$password ??= Hash::make('password'),

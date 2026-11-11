@@ -26,7 +26,7 @@ final class UserProfileResource extends JsonResource
                 'employee_id' => $user->employee_id,
                 'name' => $user->name,
                 'username' => $user->username,
-                'designation' => $user->designation,
+                'designation' => $user->designation?->value,
             ],
             'branch' => [
                 'id' => $this->resource->branch->id,

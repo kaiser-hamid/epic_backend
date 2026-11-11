@@ -12,12 +12,22 @@ use Modules\Shared\Auth\Models\User;
  */
 final class AccountGuard
 {
+    public function isProtected(User $actor, User $target): bool
+    {
+        return $target->is_super_admin && ! $actor->is_super_admin;
+    }
+
+    public function canManage(User $actor, User $target): bool
+    {
+        return ! $this->isProtected($actor, $target) && ! $actor->is($target);
+    }
+
     /**
      * @throws SuperAdminProtected
      */
     public function ensureNotProtected(User $actor, User $target): void
     {
-        if ($target->is_super_admin && ! $actor->is_super_admin) {
+        if ($this->isProtected($actor, $target)) {
             throw new SuperAdminProtected;
         }
     }

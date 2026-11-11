@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password;
 use Modules\Shared\Audit\Contracts\AuditLogger;
 use Modules\Shared\Audit\Services\EloquentAuditLogger;
 use Modules\Shared\Auth\Console\SuperAdminCommand;
@@ -22,6 +21,7 @@ use Modules\Shared\Auth\Http\Middleware\EnsurePasswordIsChanged;
 use Modules\Shared\Auth\Http\Middleware\EnsureSuperAdmin;
 use Modules\Shared\Auth\Http\Middleware\EnsureUserIsActive;
 use Modules\Shared\Auth\Models\User;
+use Modules\Shared\Auth\Policies\UserPolicy;
 use Modules\Shared\Auth\Services\BranchAwareDatabaseSessionHandler;
 use Modules\Shared\Billing\Actions\CreateInvoice;
 use Modules\Shared\Billing\Contracts\InvoiceCategoryHandler;
@@ -81,6 +81,8 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->when(CreateInvoice::class)
             ->needs('$categoryHandlers')
             ->giveTagged(InvoiceCategoryHandler::TAG);
+
+        $this->app->scoped(UserPolicy::class);
     }
 
     public function boot(PermissionRegistry $permissions, Router $router): void
@@ -155,8 +157,6 @@ final class SharedServiceProvider extends ServiceProvider
 
     private function bootAuthentication(Router $router): void
     {
-        Password::defaults(fn () => Password::min(10)->letters()->mixedCase()->numbers());
-
         $this->app->make(SessionManager::class)->extend('database', function ($app): BranchAwareDatabaseSessionHandler {
             return new BranchAwareDatabaseSessionHandler(
                 $app['db']->connection($app['config']['session.connection']),
