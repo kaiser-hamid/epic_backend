@@ -1,6 +1,37 @@
 # Blood Bank: what data goes where
 
-Personal reference. Follows one patient case from billing to an issued unit, naming the table and columns written at each step. Based on the migrations as they stand (2026-11-09).
+Personal reference. Follows one patient case from billing to an issued unit, naming the table and columns written at each step. Based on the migrations and code as they stand (2026-11-11).
+
+## Where things stand (2026-11-11)
+
+The main path works end to end: **bill → case → samples → donor exam → donor serology → bag → units → crossmatch + issue → case closed**, with every label and the Compatibility Test Report printed and logged. What is missing is everything that happens to a unit or a bill *off* that path: returns, releasing a reservation, reserving a stock unit, quarantine / discard / expiry, cancelling a case, bag or bill, the review step for test results, and consumables.
+
+```
+ Counter (Shared Billing)                Blood Bank
+ ─────────────────────────               ─────────────────────────────────────────────────────────────────────────
+ New Bill Entry ──(Blood Bank bill)──>  case open ──> Add donor (1 per save, each with a saved bill)
+   │ print: Customer Copy                  │              │
+   │        + Non Lab Copy / dept          │              ├─> Donor Examination ── fit / deferred
+   │                                       │              ├─> Sample Collection (donor) ──> Donor Serology ── eligible / deferred
+   │                                       │              └─> Blood Collection (bag) ──> Component Preparation (units: reserved / stock)
+   │                                       ├─> Sample Collection (patient)                    │
+   │                                       └──────────────────────────────────────────────> Blood Issue
+   │                                                                                       (patient blood group, crossmatch,
+   │                                                                                        post vitals, issue, report PDF)
+   │                                                                                            └─> case closed when every
+   └── general bill (e.g. BB-ADDL-DONOR) opens no case; used as a donor's bill                      billed component is issued
+```
+
+| Area | State |
+|---|---|
+| Billing (Shared): bill, quote, discount policy, idempotency, paid amount, delivery time, print (Customer Copy + Non Lab Copies), preview | Done |
+| Case opened from the bill, case details, Add donor | Done |
+| Sample Collection, Donor Examination, Donor Serology, Blood Collection, Component Preparation, Blood Issue + report | Done |
+| Labels (sample, bag, component) as GoDEX EZPL commands; Compatibility Test Report PDF | Done |
+| Test Results menu (patient ABO/Rh review and amend), Settings → Test Definitions | Next |
+| Returns, reservation release, stock-unit reservation, quarantine / discard, hourly expiry job, Inventory, Expiry Dashboard | Later |
+| Cancel a bill / case / bag, edit a bill | Later (no endpoint) |
+| Consumables, bag stock issue | Later (tables exist, nothing writes them) |
 
 ## The big picture
 
@@ -37,7 +68,7 @@ All APIs are under `/api/blood-bank`.
 
 | Menu | Steps | Status | APIs |
 |---|---|---|---|
-| **Billing → New Bill Entry, Bill List** (Shared; a Blood Bank bill opens the case) | 1, 2 | Done | `/api/billing`: `GET/POST invoices`, `POST invoices/quote`, `GET invoices/{billing}`, `POST invoices/{billing}/print`, `GET patient-types` |
+| **Billing → New Bill Entry, Bill List** (Shared; a Blood Bank bill opens the case) | 1, 2 | Done | `/api/billing`: `GET/POST invoices`, `POST invoices/quote`, `GET invoices/{billing}`, `GET invoices/{billing}/preview`, `POST invoices/{billing}/print`, `GET patient-types` |
 | **Cases** (Case List, case detail: edit details, Add donor) | 2 | Done | `GET cases`, `GET/PATCH cases/{case}` |
 | **Donors** | 4.1 | Done | `GET donors`, `GET donors/lookup`, `GET donors/{donor}` |
 | **Sample Collection** (tabs: Collection, Pending, Collected) | 3.1–3.2, 5.2 | Done | see below |
@@ -65,10 +96,10 @@ Sample Collection APIs (permissions `bb.sample.view` / `bb.sample.collect` / `bb
 | `GET cases/{case}/sample-collection` | Same screen, opened from the Pending tab or a case. |
 | `POST cases/{case}/samples` | "Collect": `subjects: [{subject_type, case_donor_id}]`, optional `collected_at`. All or nothing; returns the screen plus `collected_sample_ids` (201). The new samples' labels are logged as printed (first print) and each of those samples carries `label_command` for the print service; printing them again is a reprint. |
 | `POST cases/{case}/sample-labels` | "Label" / "Label (All)": `sample_ids`, `reprint_reason` (required for a reprint). Returns label content per sample with `label_command`. |
-
-Sample label: `label_command` is the GoDEX EZPL command from `resources/label/bb_barcode_label.ezpx` (Shared `LabelRenderer`, CRLF line endings), each `^Vxx` replaced with its value cut to the declared length; text fields of centred variables (`jc..`) get the x that centres the value on the label, measured with the font's character widths, dropping to a smaller font when too wide: `V00` barcode = sample no; `V01` `{invoice no without its 2-letter branch code}|{sample no}` (the additional donor's own invoice, else the case's); `V02` the test item codes billed on that invoice; `V03` `{M|F|O}-{age}Y {print time d/m/Y h:i A}`.
 | `GET sample-collection/pending` | Pending tab: open cases still waiting for a sample from the patient or a donor who was not deferred. |
 | `GET samples` | Collected tab and barcode scan (`filter[sample_no]`, `filter[case_no]`, `filter[status]`, `filter[subject_type]`, `filter[collected_from/to]`). |
+
+Sample label: `label_command` is the GoDEX EZPL command from `resources/label/bb_barcode_label.ezpx` (Shared `LabelRenderer`, CRLF line endings), each `^Vxx` replaced with its value cut to the declared length; text fields of centred variables (`jc..`) get the x that centres the value on the label, measured with the font's character widths, dropping to a smaller font when too wide: `V00` barcode = sample no; `V01` `{invoice no without its 2-letter branch code}|{sample no}` (the additional donor's own invoice, else the case's); `V02` the test item codes billed on that invoice; `V03` `{M|F|O}-{age label} {print time d/m/Y h:i A}` (age as its largest unit, e.g. `78Y`, `5M`).
 
 Collection rules: a subject is collectable while the case is `open` and it has no sample (or only `rejected` ones); a donor also needs to be `fit` (accepted at the physical exam, step 5.1). Error codes are `CASE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `DONOR_DEFERRED`, `DONOR_NOT_FIT` (donor still `registered`), `SAMPLE_ALREADY_COLLECTED` (409), `SAMPLE_NOT_IN_CASE` and `REPRINT_REASON_REQUIRED`.
 
@@ -78,7 +109,7 @@ Collection rules: a subject is collectable while the case is `open` and it has n
 
 | Table | What goes in |
 |---|---|
-| `sh_departments`, `sh_test_items` | Billable catalog: what the counter can charge for (code, name, `rate` in paisa). `category` (`general` / `blood_bank`) decides the kind of bill; department grouping is unrelated. `discount_rate_bp` is the item's own discount under a policy (null = follow the policy, 0 = never discounted). The additional donor charge `BB-ADDL-DONOR` is `general`, so its bill opens no case. |
+| `sh_departments`, `sh_test_items` | Departments carry `room_no` (printed on the bill's Non Lab Copy; Blood Bank `BB` = room 900). Billable catalog: what the counter can charge for (code, name, `rate` in paisa). `category` (`general` / `blood_bank`) decides the kind of bill; department grouping is unrelated. `discount_rate_bp` is the item's own discount under a policy (null = follow the policy, 0 = never discounted). The additional donor charge `BB-ADDL-DONOR` is `general`, so its bill opens no case. |
 | `sh_patient_types`, `sh_discount_policies` | Patient type (required on every bill; "General Patient" = `GENERAL`) grouping the discount policies staff may pick, at most one per bill ("General 25%" = `GENERAL_25`, `rate_bp` 2500). Inserted by migration. |
 | `sh_doctors` | Referring doctors / consultants. |
 | `bb_test_definitions` | The Blood Bank lab tests and their result fields: `result_type` (text / number / option), `unit`, `reference_range`, `method` (printed on the report, e.g. "Immunochromatographic Test", "ICT method"), `options` (for option lists), `applies_to` (patient / donor / both). Inserted by the migration `insert_bb_serology_test_definitions` (codes in `SerologyTest`; the form depends on them, so they are not a seeder): `BLOOD_GROUP` (one combined option, the `BloodGroup` values `A_POS` … `O_NEG`), and donor screening `HBSAG`, `ANTI_HCV`, `ANTI_HIV` (1 & 2), `SYPHILIS` (option `non_reactive` / `reactive`), and `MALARIAL_PARASITE` (option `not_found` / `found`, method "ICT method", added by the migration `insert_bb_malarial_parasite_test_definition`). The first four screening tests get `method` = "Immunochromatographic Test" from the migration `set_bb_serology_test_methods` (blood group has none). |
@@ -91,12 +122,14 @@ Steps 1 and 2 are one form and one request in Billing: `POST /api/billing/invoic
 ### 1. Patient registration and billing (Shared)
 
 1. Find or create the patient → `sh_patient_master` (`patient_no` = `P{yyMMdd}{0001}`, global, daily reset; name, age, gender, blood group, phone…).
-2. Counter bills the blood bank service → `sh_billing` (`invoice_no` = the vendor's number when typed, else `{branch code}{yyMMdd}{0001}`, e.g. `NB2610280001`, per branch, daily reset; `branch_id` of the issuing branch, `category`, `patient_type_id`, `subtotal_amount`, `discount_amount`, signed `rounding_amount`, `amount` = payable in paisa, `status`, `idempotency_key`), lines in `sh_billing_items` (`test_item_id`, `category`, `quantity`, `rate` snapshot, `amount`, `discount_rate_bp`, `discount_amount`, `net_amount`), the chosen policy snapshot in `sh_billing_discounts`, referral in `sh_billing_referrals` (doctor, second doctor, or self-referral). The referring doctor here is the register's **"Name of consultant"**; Blood Bank does not store it again.
+2. Counter bills the blood bank service → `sh_billing` (`invoice_no` = the vendor's number when typed, else `{branch code}{yyMMdd}{0001}`, e.g. `NB2610280001`, per branch, daily reset; `branch_id` of the issuing branch, `category`, `patient_type_id`, `subtotal_amount`, `discount_amount`, signed `rounding_amount`, `amount` = payable in paisa, `paid_amount` (paid at the counter, paisa), `status = active`, `billed_at`, `delivery_at` (when the reports will be ready; today or later, printed on the bill), `idempotency_key`), lines in `sh_billing_items` (`test_item_id`, `category`, `quantity`, `rate` snapshot, `amount`, `discount_rate_bp`, `discount_amount`, `net_amount`), the chosen policy snapshot in `sh_billing_discounts`, referral in `sh_billing_referrals` (doctor, second doctor, or self-referral). The referring doctor here is the register's **"Name of consultant"**; Blood Bank does not store it again.
    - One bill is either Blood Bank or general: mixing returns `INVOICE_CATEGORY_MIXED`, and the composite FK `sh_billing_items (billing_id, category) → sh_billing (id, category)` refuses it in the database too. The form drops the other items (after a confirm) when the first Blood Bank item is picked.
    - Discount: each line `rate × qty × (item rate ?? policy rate)`, rounded half-up to the paisa (no policy = no discount, the item rate is ignored). Payable: drop the paisa, then round up to the next 10 taka (Tk 1,022.25 → 1,030; Tk 1,020.50 → 1,020), on every bill. `POST invoices/quote` returns the same totals without saving. `DISCOUNT_POLICY_NOT_ALLOWED` when the policy isn't an active one of the patient type.
    - Double submit / retry: the form sends one `idempotency_key` per session. The same key from the same user returns the saved bill (200) and opens no second case; from another user, `IDEMPOTENCY_KEY_REUSED` (409).
    - A Blood Bank bill needs `category_details.care_type` ("Care of"); any other bill refuses `category_details`.
-3. Bill List / print: `POST invoices/{billing}/print` (`sh.billing.print`) logs the print (`sh_print_logs`, `document_type = sh.invoice`) and returns an A4 PDF (provisional layout); a reprint needs a reason and is marked "REPRINT".
+   - Payment: `paid_amount` may be anything from 0 up to the payable the server computes (`PAID_AMOUNT_EXCEEDS_PAYABLE`, and a DB check `paid_amount <= amount`). Due = `amount − paid_amount`; the resource sends `paid_amount`, `due_amount`, `delivery_at`. The form's "Given" / "Change" are not sent or stored.
+3. Bill List / print: `POST invoices/{billing}/print` (`sh.billing.print`) logs the print (`sh_print_logs`, `document_type = sh.invoice`) and returns a PDF on the pre-printed A5 pad (10 mm sides, 27 mm top/bottom kept for the pad's header and QR footer): a **Customer Copy** (prices, totals, paid, PAID/DUE, amount in words in lakh/crore) followed by one **Non Lab Copy** per department on the bill (its items without prices, department name and room). Bill no and ULID barcodes. The first print says "Original Copy"; every later one is a "Duplicate Copy" and needs a reason.
+4. `GET invoices/{billing}/preview` (`view` on the bill) returns the same PDF marked "Preview"; it is not logged.
 
 ### 2. Open the case (patient register)
 
@@ -110,10 +143,10 @@ Patient details are **not copied** here; read them from `sh_patient_master`.
 
 ### 3. Patient sample (blood group)
 
-1. Draw the patient's sample → `bb_samples`: `sample_no` (printed on the label; `S{yyMMdd}{0001}`, global, daily reset, shared by patient and donor samples), `case_id`, `case_donor_id = null`, `subject_type = patient`, `collected_at/by`, `status = collected`.
+1. Draw the patient's sample (Sample Collection) → `bb_samples`: `sample_no` (printed on the label; `S{yyMMdd}{0001}`, global, daily reset, shared by patient and donor samples), `case_id`, `case_donor_id = null`, `subject_type = patient`, `collected_at/by`, `status = collected`.
 2. Print the sample label → `sh_print_logs` (`document_type = bb.sample_label`, `printable_type = bb.sample`).
-3. Blood group → `bb_test_results`, one row each for Blood Group (ABO) and Rhesus (D): `sample_id`, `test_definition_id`, `result_value`, `observation`, `tested_by/at`, `version = 1`, `is_current = true`, `status = entered`. Sample moves `in_testing` → `tested`.
-4. Review → same row: `status = reviewed`, `reviewed_by/at`.
+3. Blood group (today: entered on the Blood Issue form, step 9) → `bb_test_results`, one combined `BLOOD_GROUP` row (`A_POS` … `O_NEG`): `sample_id`, `test_definition_id`, `result_value`, `tested_by` = the chosen Medical Technologist, `tested_at`, `version = 1`, `is_current = true`, `status = entered`. Sample goes straight `collected → tested` (`in_testing` is not used yet).
+4. Review → same row: `status = reviewed`, `reviewed_by/at`. **Not built** (Test Results menu, next).
 5. Correction → **new row** with `version + 1`, `amendment_reason`; the old row gets `is_current = false`. Nothing is overwritten.
 
 The same patient sample is used for the crossmatch against each unit (step 8).
@@ -310,16 +343,55 @@ Not built yet: recording an incompatible crossmatch without issuing, returns / r
 | Blood group | `bb_test_results` on the patient sample |
 | Crossmatch | `bb_crossmatches` (patient sample × unit), printed as the Compatibility Test Report |
 
-## Status cheat sheet
+## Managed statuses
 
-| Table | Statuses |
-|---|---|
-| `bb_cases` | open → closed / cancelled |
-| `bb_case_donors` | registered → fit (physical exam) → eligible (serology) → collected; deferred at either check; never backward |
-| `bb_samples` | collected → in_testing → tested (or rejected) |
-| `bb_test_results`, `bb_crossmatches` | entered → reviewed (or rejected) |
-| `bb_collections` | collected / cancelled |
-| `bb_units` | available ⇄ reserved → issued; quarantined, discarded, expired |
+Every status is a PHP enum cast on the model. "Set by" is the Action that writes the value today; a transition with no Action is declared in the enum but nothing moves a record there yet.
+
+| Table (enum) | Value | Set by | Notes |
+|---|---|---|---|
+| `sh_billing` (`BillingStatus`) | `active` | `CreateInvoice` | Every saved bill. |
+| | `cancelled` | — | Not built. A case or donor refuses a non-active bill (`INVOICE_NOT_ACTIVE`). |
+| `bb_cases` (`CaseStatus`) | `open` | `OpenCaseForInvoice` | All Blood Bank work needs an open case (`CASE_NOT_OPEN`). |
+| | `closed` | `IssueBlood` | When every `bb_case_components` line has as many issued units as its `quantity`. Audit `bb.case.closed`. |
+| | `cancelled` | — | Not built. |
+| `bb_case_donors` (`CaseDonorStatus`) | `registered` | `AddCaseDonor` | |
+| | `fit` / `deferred` | `RecordPhysicalExamination` (`ExaminationDecision`) | Correctable until the donor sample is drawn. |
+| | `eligible` / `deferred` | `RecordDonorSerology` (`SerologyDecision`) | Accept refused on a reactive / malaria found result. Correctable until the bag is collected. |
+| | `collected` | `CollectBlood` | Final. Never moves backward; a deferral is final for this case. |
+| `bb_samples` (`SampleStatus`) | `collected` | `CollectSamples` | |
+| | `tested` | `RecordDonorSerology` (donor), `IssueBlood` (patient) | |
+| | `in_testing`, `rejected` | — | Not used yet; a `rejected` sample already lets the subject be collected again. |
+| `bb_test_results` (`TestResultStatus`) | `entered` | `RecordDonorSerology`, `IssueBlood` (patient blood group) | Changes are new versions (`version`, `is_current`, `amendment_reason`). |
+| | `reviewed`, `rejected` | — | Review not built (Test Results menu). Donor serology has no review step by design. |
+| `bb_crossmatches` (`TestResultStatus`) | `reviewed` | `IssueBlood` | Saved already reviewed: technologist = `tested_by`, physician = `reviewed_by`. Only compatible/compatible is saved. |
+| | `entered`, `rejected` | — | Recording an incompatible crossmatch without issuing is not built. |
+| `bb_collections` (`CollectionStatus`) | `collected` | `CollectBlood` | One bag per case donor. |
+| | `cancelled` | — | Not built; a cancelled bag is already ignored by the gates (`BAG_CANCELLED`). |
+| `bb_units` (`UnitStatus`) | `reserved` / `available` | `PrepareUnits` | `reserved` + `case_id` "for this patient", else `available` stock. |
+| | `issued` | `IssueBlood` | From `reserved` only (`UNIT_NOT_RESERVED`); location cleared. |
+| | `available` ⇄ `reserved` after preparation, `quarantined`, `discarded`, `expired` | — | Not built (release, stock reservation, returns, quarantine, discard, hourly expiry job). |
+
+Each unit change also writes a `bb_unit_movements` row (`UnitMovementRecorder`); each donor / case / sample status change is audit-logged with old and new values.
+
+## Database changes log
+
+What each migration added after the first schema (2026-10-24), newest first. Run order matters only within a day.
+
+| Date | Migration | Change |
+|---|---|---|
+| 2026-11-09 | `add_room_no_to_sh_departments_table` | `sh_departments.room_no` (Blood Bank = 900), for the Non Lab Copy. |
+| 2026-11-09 | `add_delivery_and_paid_amount_to_sh_billing_table` | `sh_billing.delivery_at` (nullable only for older bills), `paid_amount` (default 0) + check `paid_amount <= amount`. |
+| 2026-11-09 | `link_bb_component_types_and_cases_to_billing` | `bb_component_types.test_item_id` (required, unique) + `test_item_code` / `test_item_name` copies; `bb_case_components.test_item_id`; `bb_cases.billing_id` required and unique. |
+| 2026-11-09 | `add_category_discount_and_idempotency_to_sh_billing_tables` | `sh_billing.category`, `patient_type_id`, `subtotal_amount`, `discount_amount`, `rounding_amount`, `idempotency_key`; line `category`, discount columns, `net_amount`; composite FK so a bill's lines share its category; `sh_billing_discounts`. |
+| 2026-11-09 | `create_sh_patient_types_and_discount_policies_tables` | `sh_patient_types`, `sh_discount_policies` (General / General 25%). |
+| 2026-11-09 | `add_category_and_discount_rate_to_sh_test_items_table` | `sh_test_items.category` (`general` / `blood_bank`), `discount_rate_bp`. |
+| 2026-11-08 | `add_unit_prefix_to_bb_component_types_table` | `bb_component_types.unit_prefix` (WB `BH`, PCV `BC`, FP `BP`, CRYO `BR`, PLATELET `BT`, PLASMA `BS`). |
+| 2026-11-08 | `insert_bb_malarial_parasite_test_definition` | `MALARIAL_PARASITE` test definition. |
+| 2026-11-08 | `add_profile_fields_to_bb_donors_table` | `father_name`, `marital_status`, `religion`, `occupation`, `is_regular_volunteer`. |
+| 2026-11-03 | `set_bb_serology_test_methods` | `method` = "Immunochromatographic Test" on the screening tests. |
+| 2026-11-03 | `add_branch_id_to_bb_units_and_storage_locations` | Stock and locations per branch. |
+| 2026-11-02 | `insert_bb_serology_test_definitions`, `insert_sh_additional_donor_charge_test_item` | Blood group + screening test definitions; `BB-ADDL-DONOR` charge (`general`). |
+| 2026-10-28 | `add_branch_id_to_bb_cases_table`, `add_branch_id_to_sh_billing_table`, `create_sh_number_sequences_table` | Branch ownership; numbering sequences. |
 
 ## History rules (nothing is overwritten)
 
