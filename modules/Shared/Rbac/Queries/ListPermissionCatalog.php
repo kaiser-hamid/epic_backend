@@ -12,6 +12,6 @@ final class ListPermissionCatalog
      */
     public function get(): Collection
     {
-        return Permission::query()->orderBy('module')->orderBy('group')->orderBy('name')->get();
+        return Permission::query()->orderBy('module_order')->orderBy('module')->orderBy('group')->orderBy('name')->get();
     }
 }

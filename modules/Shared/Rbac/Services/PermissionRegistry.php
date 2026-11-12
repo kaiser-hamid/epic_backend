@@ -5,9 +5,11 @@ namespace Modules\Shared\Rbac\Services;
 use BackedEnum;
 use InvalidArgumentException;
 use Modules\Shared\Rbac\Contracts\PermissionDefinition;
+use Modules\Shared\Rbac\Contracts\RoleTemplateDefinition;
 
 /**
- * Collects every module's permission enum. Modules register theirs from their service provider.
+ * Collects every module's permission enum and default role templates. Modules register theirs from their
+ * service provider.
  */
 final class PermissionRegistry
 {
@@ -15,6 +17,11 @@ final class PermissionRegistry
      * @var array<string, PermissionDefinition&BackedEnum>
      */
     private array $permissions = [];
+
+    /**
+     * @var array<string, RoleTemplateDefinition&BackedEnum>
+     */
+    private array $roleTemplates = [];
 
     /**
      * @param  class-string<PermissionDefinition&BackedEnum>  $enum
@@ -27,6 +34,26 @@ final class PermissionRegistry
 
         foreach ($enum::cases() as $permission) {
             $this->permissions[(string) $permission->value] = $permission;
+        }
+    }
+
+    /**
+     * @param  class-string<RoleTemplateDefinition&BackedEnum>  $enum
+     */
+    public function registerRoleTemplates(string $enum): void
+    {
+        if (! is_subclass_of($enum, RoleTemplateDefinition::class) || ! is_subclass_of($enum, BackedEnum::class)) {
+            throw new InvalidArgumentException("{$enum} must be a backed enum implementing RoleTemplateDefinition.");
+        }
+
+        foreach ($enum::cases() as $template) {
+            $modules = array_unique(array_map(fn (PermissionDefinition $permission): string => $permission->module(), $template->permissions()));
+
+            if (count($modules) !== 1) {
+                throw new InvalidArgumentException("Role template {$template->value} must use permissions of exactly one module.");
+            }
+
+            $this->roleTemplates[(string) $template->value] = $template;
         }
     }
 
@@ -49,5 +76,13 @@ final class PermissionRegistry
     public function has(string $name): bool
     {
         return isset($this->permissions[$name]);
+    }
+
+    /**
+     * @return list<RoleTemplateDefinition&BackedEnum>
+     */
+    public function roleTemplates(): array
+    {
+        return array_values($this->roleTemplates);
     }
 }

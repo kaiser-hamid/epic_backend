@@ -25,7 +25,7 @@ final class CreateUserData extends Data
         public string $username,
         #[Min(AccountRules::PASSWORD_MIN), Max(AccountRules::PASSWORD_MAX), Regex(AccountRules::PASSWORD_PATTERN)]
         public string $password,
-        public ?Designation $designation = null,
+        public Designation $designation,
         #[Regex(AccountRules::PHONE_PATTERN)]
         public ?string $phone = null,
     ) {}

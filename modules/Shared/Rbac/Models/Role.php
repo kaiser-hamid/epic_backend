@@ -12,10 +12,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Shared\Rbac\Database\Factories\RoleFactory;
 
 /**
- * A permission template for the admin UI (e.g. "Cash"). It is never assigned to users and never checked at runtime.
+ * A permission template for the admin UI (e.g. "Cashier"). It is never assigned to users and never checked at runtime.
+ * It belongs to one module (`module` = a permission module key) and holds only that module's permissions.
  */
 #[Table('sh_roles')]
-#[Fillable(['name', 'description'])]
+#[Fillable(['name', 'module', 'description'])]
 #[UseFactory(RoleFactory::class)]
 final class Role extends Model
 {

@@ -22,9 +22,31 @@ enum SharedPermission: string implements PermissionDefinition
     case BillingCreate = 'sh.billing.create';
     case BillingPrint = 'sh.billing.print';
 
+    /**
+     * Shared code serves two screens: billing (with patient registration, which happens on the bill) and
+     * user & permission administration.
+     */
     public function module(): string
     {
-        return 'shared';
+        return $this->isBilling() ? 'billing' : 'access';
+    }
+
+    public function moduleLabel(): string
+    {
+        return $this->isBilling() ? 'Billing' : 'User & Permission';
+    }
+
+    public function moduleOrder(): int
+    {
+        return $this->isBilling() ? 20 : 30;
+    }
+
+    private function isBilling(): bool
+    {
+        return match ($this) {
+            self::PatientView, self::PatientCreate, self::BillingView, self::BillingCreate, self::BillingPrint => true,
+            default => false,
+        };
     }
 
     public function group(): string

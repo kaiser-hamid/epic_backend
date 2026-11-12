@@ -21,15 +21,17 @@ final class UpdateRole
         return DB::transaction(function () use ($role, $data): Role {
             $before = [
                 'name' => $role->name,
+                'module' => $role->module,
                 'description' => $role->description,
                 'permissions' => $role->permissions()->orderBy('name')->pluck('name')->all(),
             ];
 
-            $role->update(['name' => $data->name, 'description' => $data->description]);
+            $role->update(['name' => $data->name, 'module' => $data->module, 'description' => $data->description]);
             $role->permissions()->sync(Permission::query()->whereIn('name', $data->permissions)->pluck('id'));
 
             $this->auditLogger->record(AuditAction::RoleUpdated, $role, $before, [
                 'name' => $role->name,
+                'module' => $role->module,
                 'description' => $role->description,
                 'permissions' => collect($data->permissions)->sort()->values()->all(),
             ]);

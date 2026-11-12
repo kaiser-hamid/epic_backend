@@ -47,11 +47,36 @@ it('accepts letter-only, digit-only and mixed passwords but rejects special char
 
     $valid ? $response->assertCreated() : $response->assertJsonValidationErrors(['password']);
 })->with([
-    'letters' => ['abcdefghij', true],
-    'digits' => ['1234567890', true],
-    'mixed' => ['Abc1234567', true],
+    'letters' => ['abcdef', true],
+    'capitalised letters' => ['Abcdef', true],
+    'digits' => ['123456', true],
+    'mixed' => ['123abc', true],
+    'mixed case' => ['123Abc', true],
+    'too short' => ['abc12', false],
     'special' => ['Abc12345!@', false],
 ]);
+
+it('requires a designation on a new user', function (array $overrides) {
+    signInToBranch($this, $this->admin, $this->branch)
+        ->postJson('/api/access/users', newUserPayload($overrides))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['designation']);
+})->with([
+    'missing' => [['designation' => null]],
+    'empty' => [['designation' => '']],
+    'unknown' => [['designation' => 'astronaut']],
+]);
+
+it('does not clear the designation on a profile update', function () {
+    $staff = User::factory()->create(['designation' => Designation::Nurse]);
+
+    signInToBranch($this, $this->admin, $this->branch)
+        ->patchJson("/api/access/users/{$staff->id}", ['designation' => null])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['designation']);
+
+    expect($staff->fresh()->designation)->toBe(Designation::Nurse);
+});
 
 it('rejects a phone number that is not 01 followed by nine digits', function (string $phone) {
     signInToBranch($this, $this->admin, $this->branch)

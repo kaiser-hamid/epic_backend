@@ -20,7 +20,7 @@ final class UpdateUserData extends Data
     public function __construct(
         #[Max(255)]
         public Optional|string $name,
-        public Optional|Designation|null $designation,
+        public Optional|Designation $designation,
         #[Regex(AccountRules::PHONE_PATTERN)]
         public Optional|string|null $phone,
     ) {}

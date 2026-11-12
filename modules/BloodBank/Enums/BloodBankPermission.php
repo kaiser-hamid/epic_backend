@@ -31,6 +31,16 @@ enum BloodBankPermission: string implements PermissionDefinition
         return 'blood-bank';
     }
 
+    public function moduleLabel(): string
+    {
+        return 'Blood Bank';
+    }
+
+    public function moduleOrder(): int
+    {
+        return 10;
+    }
+
     public function group(): string
     {
         return match ($this) {

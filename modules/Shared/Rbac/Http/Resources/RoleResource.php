@@ -19,6 +19,7 @@ final class RoleResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'module' => $this->module,
             'description' => $this->description,
             'permissions' => $this->whenLoaded('permissions', fn () => $this->permissions->pluck('name')->sort()->values()->all()),
         ];

@@ -12,7 +12,11 @@ use Modules\Shared\Auth\Services\AccountGuard;
 use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Rbac\Data\SyncBranchPermissionsData;
 use Modules\Shared\Rbac\Models\Permission;
+use Modules\Shared\Rbac\Models\Role;
 use Modules\Shared\Rbac\Models\UserBranchPermission;
+use Modules\Shared\Rbac\Queries\ListRoles;
+use Modules\Shared\Rbac\Services\RoleMatcher;
+use Spatie\LaravelData\Optional;
 
 /**
  * Replaces what a user may do in one branch with exactly the given list. Other branches are untouched.
@@ -23,10 +27,12 @@ final class SyncUserBranchPermissions
     public function __construct(
         private readonly AccountGuard $accountGuard,
         private readonly AuditLogger $auditLogger,
+        private readonly ListRoles $listRoles,
+        private readonly RoleMatcher $roleMatcher,
     ) {}
 
     /**
-     * @return list<string> the permissions the user now holds in the branch
+     * @return array{branch: Branch, permissions: list<string>, matched_roles: list<array{id: int, name: string}>, other_permissions: list<string>}
      *
      * @throws SuperAdminProtected|CannotChangeOwnAccount
      */
@@ -34,7 +40,7 @@ final class SyncUserBranchPermissions
     {
         $this->accountGuard->ensureCanManage($actor, $user);
 
-        return DB::transaction(function () use ($actor, $user, $branch, $data): array {
+        $permissions = DB::transaction(function () use ($actor, $user, $branch, $data): array {
             $wanted = Permission::query()->whereIn('name', $data->permissions)->pluck('id', 'name');
 
             $current = UserBranchPermission::query()
@@ -68,11 +74,33 @@ final class SyncUserBranchPermissions
                     AuditAction::UserBranchPermissionsSynced,
                     $user,
                     ['branch_id' => $branch->getKey(), 'removed' => $removed->keys()->sort()->values()->all()],
-                    ['branch_id' => $branch->getKey(), 'added' => $added->keys()->sort()->values()->all()],
+                    [
+                        'branch_id' => $branch->getKey(),
+                        'added' => $added->keys()->sort()->values()->all(),
+                        ...$this->appliedRoles($data),
+                    ],
                 );
             }
 
             return $wanted->keys()->sort()->values()->all();
         });
+
+        return [
+            'branch' => $branch,
+            'permissions' => $permissions,
+            ...$this->roleMatcher->match($permissions, $this->listRoles->get()),
+        ];
+    }
+
+    /**
+     * @return array{applied_roles?: list<string>}
+     */
+    private function appliedRoles(SyncBranchPermissionsData $data): array
+    {
+        if ($data->appliedRoleIds instanceof Optional || $data->appliedRoleIds === []) {
+            return [];
+        }
+
+        return ['applied_roles' => Role::query()->whereKey($data->appliedRoleIds)->orderBy('name')->pluck('name')->all()];
     }
 }

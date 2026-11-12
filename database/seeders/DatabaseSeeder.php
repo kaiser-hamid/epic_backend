@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Modules\BloodBank\Database\Seeders\ComponentTypeSeeder;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Branch\Models\Branch;
+use Modules\Shared\Rbac\Actions\SeedRoleTemplates;
 use Modules\Shared\Rbac\Actions\SyncPermissionCatalog;
 use Modules\Shared\TestCatalog\Database\Seeders\DepartmentSeeder;
 use Modules\Shared\TestCatalog\Database\Seeders\TestItemSeeder;
@@ -19,14 +20,15 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
-    public function run(SyncPermissionCatalog $syncPermissionCatalog): void
+    public function run(SyncPermissionCatalog $syncPermissionCatalog, SeedRoleTemplates $seedRoleTemplates): void
     {
         $syncPermissionCatalog->handle();
+        $seedRoleTemplates->handle();
 
-        Branch::factory()->create([
-            'code' => 'NB',
-            'name' => 'Blood Bank',
-        ]);
+        // The branch code is also the prefix of its invoice numbers (e.g. NE2611120001).
+        foreach (['NE' => 'East Gate', 'NM' => 'Medical Main Gate', 'NA' => 'Anderkilla', 'NH' => 'Halishahar', 'NG' => 'Golden Core'] as $code => $name) {
+            Branch::query()->firstOrCreate(['code' => $code], ['name' => $name, 'is_active' => true]);
+        }
 
         $this->call([DepartmentSeeder::class, TestItemSeeder::class, ComponentTypeSeeder::class]);
 

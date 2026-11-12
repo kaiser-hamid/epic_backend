@@ -1,168 +1,95 @@
-# Task: Redesign Blood Bank Case Entry & Billing Workflow
+# Feature: User & Permission Management Module
 
-Act as a Senior Software Architect. I need to redesign the existing Blood Bank billing and case-entry workflow.
+## Objective
 
-**IMPORTANT RESTRICTIONS:**
-- Do NOT modify, create, delete, or rename any files.
-- Do NOT write or execute migrations, code changes, or commands that modify the project.
-- Do NOT start implementation.
-- Your responsibility is to inspect the existing codebase, understand the current architecture, identify required changes, and prepare a detailed implementation plan.
-- Challenge my decisions if you find architectural problems, edge cases, or inconsistencies. Don't blindly agree with everything.
-- Ask clarifying questions when business rules are ambiguous. Drill me before finalizing the plan.
+Implement a standalone **User Management and Permission Management module** under the **Config** menu of the application.
 
-## 1. Separate Billing from Case Entry
+The module should provide a simple interface for managing application users, defining permission groups, assigning permissions to groups, and controlling individual user access.
 
-Billing will move into a dedicated module.
+Follow the existing application's architecture, coding conventions, UI patterns, and technology stack. Do not introduce unnecessary abstractions or dependencies.
 
-The Dashboard will have a separate Billing menu with the following submenus:
+---
 
-- **Billing (Group)**
-- **New Bill Entry**
-- **Bill List**
+## 1. User Management
 
-Billing should be a generic module that supports different types of billing. However, invoices must not contain a mixture of Blood Bank and non-Blood Bank test items.
+Create a user management interface under:
 
-## 2. Blood Bank Case Identification
+**Config → User Management**
 
-Case entry will no longer have an option to create a new case manually.
+### Features
 
-Instead:
-- The Case menu will display cases automatically generated from saved invoices.
-- When an invoice contains one or more Blood Bank test items, it must automatically be considered a Blood Bank Case.
-- Only invoices containing Blood Bank test items should appear in the Blood Bank Case list.
-- Users will open an existing case and add donors to it.
-- Case creation and donor registration must follow the existing domain relationships and business rules.
+- List all application users.
+- Create a new user.
+- Edit existing user information.
+- Enable or disable a user account.
+- Reset a user's password according to current flow.
+- Manage the user's permission group assignments.
+- Manage individual permission overrides.
 
-The invoice should be the source of the Blood Bank case.
+### User Fields
 
-## 3. Conditional Billing UI Behavior
+Follow the existing user model and authentication structure. Reuse existing fields wherever possible.
 
-Although billing is generic, its UI must enforce Blood Bank-specific invoice rules.
+At minimum, support:
+- Name
+- Username (based on the existing authentication implementation)
+- Password (for new users)
+- Account status (Active / Disabled)
+- Assigned permission groups
 
-When creating a new bill:
+### Password Management
 
-**Scenario A: No Blood Bank test item selected**
-- Display the normal generic billing interface.
-- Do not show the Blood Bank-specific Care Of option.
+- Allow administrators to reset a user's password.
+- Passwords must be securely hashed using the application's existing authentication mechanism.
+- Never expose existing passwords.
+- Follow the existing password validation rules.
 
-**Scenario B: A Blood Bank test item is selected**
-- Conditionally display the Care Of (Takeaway / Daycare) option.
-- If non-Blood Bank test items were already selected, remove them from the selected items.
-- Prevent users from adding any non-Blood Bank test items afterward.
-- The invoice must contain Blood Bank test items only.
+### Account Status
 
-In other words:
-- A Blood Bank invoice cannot contain non-Blood Bank test items.
-- A generic/non-Blood Bank invoice cannot become a mixed invoice.
-- No compound invoices are allowed.
+- Disabled users must not be able to authenticate.
+- Enforce account status on the backend, not just in the frontend.
 
-Please evaluate whether this restriction should be enforced only in the frontend or at the backend/domain level as well. I expect proper server-side enforcement.
+---
 
-## 4. Billing-to-Case Integration
+### Suggested API Responsibilities
 
-When saving a bill:
-- Identify whether the selected test items contain Blood Bank test items.
-- If Blood Bank test items are present, pass the necessary data to the Blood Bank domain to create the corresponding case.
-- The saved invoice and Blood Bank case must remain correctly associated.
-- Prevent duplicate case creation if the bill is updated, retried, or submitted more than once.
-- Consider database transactions, data consistency, and failure scenarios.
+**User Management**
+- List users
+- Create user
+- Get user details
+- Update user
+- Enable / Disable user
+- Reset password
 
-Investigate the existing case creation workflow and recommend how it should integrate with the new billing workflow.
+### Backend Requirements
 
-## 5. Discount Management
+- Implement proper request validation.
+- Use database transactions where multiple related records are modified.
+- Ensure disabled users cannot authenticate.
+- Avoid N+1 database queries.
+- Follow existing pagination and filtering conventions.
+- Return consistent API response structures.
 
-Introduce a discount system.
+---
 
-Initial requirement:
-- Add a dedicated discount table in the database.
-- Initially, there will be one "General" discount rule: **25%**.
-- Add a discount field to the billing UI.
-- Persist the selected/applied discount information in the database.
+## 6. Frontend Implementation
 
-However, the design must be extensible because multiple discount rules and conditions will be introduced later.
+Build the complete frontend for user management interfaces.
 
-Evaluate:
-- Whether discount should be stored as a percentage, fixed amount, or both.
-- Whether invoice items or the entire invoice should receive the discount.
-- How to preserve the applied discount when discount rules change later.
-- How to calculate subtotal, discount amount, and payable amount accurately.
-- Whether historical invoices should retain their original discount values.
+Follow the existing React architecture, component structure, design system, form conventions, and API integration patterns.
 
-Do not assume business rules that I haven't specified. Ask me.
+### User Management Screen
 
-## 6. Codebase Investigation
+Include:
+- User listing with search and pagination.
+- Create user form.
+- Edit user form.
+- Active / Disabled status indicator.
+- Enable / Disable action.
+- Password reset action.
 
-Before proposing a solution, inspect the existing implementation.
+---
 
-Pay particular attention to:
+Do not modify unrelated modules or introduce breaking changes.
 
-- Existing Billing-related models, migrations, services, actions, DTOs, and API endpoints.
-- Existing Blood Bank case creation flow.
-- Case, patient, invoice, test item, sample, and donor relationships.
-- How Blood Bank test items are currently identified.
-- Existing frontend billing and case-entry components.
-- Existing validation and transaction boundaries.
-- Existing naming conventions and architectural patterns.
-
-Reuse the current architecture where appropriate. Avoid introducing unnecessary abstractions or duplicating existing functionality.
-
-## 7. Expected Deliverables
-
-Work in the following stages:
-
-### Stage 1 — Understand the Existing System
-Explain the current billing-to-case workflow based on actual codebase findings.
-
-Identify relevant files and explain their responsibilities.
-
-### Stage 2 — Gap Analysis
-Compare the existing implementation with the proposed workflow.
-
-Identify:
-- What needs to change.
-- What can remain unchanged.
-- What should be removed or deprecated.
-- Potential architectural and data-integrity problems.
-- Unclear business rules.
-
-### Stage 3 — Proposed Architecture
-Propose the target architecture, including:
-
-- Billing module responsibilities.
-- Blood Bank case identification and creation.
-- Invoice-to-case relationship.
-- Backend validation and business-rule enforcement.
-- Frontend conditional behavior.
-- Discount data model and calculation strategy.
-
-Include database relationship diagrams or Mermaid diagrams where useful.
-
-### Stage 4 — Detailed Implementation Plan
-Break the work into logical implementation phases.
-
-For each phase, specify:
-- Backend changes.
-- Frontend changes.
-- Database changes.
-- API contract changes.
-- Dependencies on other phases.
-- Potential risks.
-
-Mention exact existing file paths wherever possible. Clearly distinguish existing files from files you recommend creating.
-
-### Stage 5 — Drill Me
-Before finalizing the architecture, ask me questions about unresolved business rules.
-
-Ask questions in small, manageable groups rather than presenting a huge questionnaire.
-
-Prioritize questions that could fundamentally change the database schema, domain boundaries, or workflow.
-
-**Do not proceed to implementation unless I explicitly authorize it.**
-
-## Final Instruction
-
-Think carefully about domain boundaries, data integrity, transaction safety, extensibility, and maintainability.
-
-I want a clean, scalable design that fits the existing Laravel + React application. I do not want generic repository-pattern boilerplate or unnecessary architectural complexity.
-
-**For now, this is an architecture and planning exercise only.W Absolutely no file modifications.**
+Create a migration to start ids from 1000 instead of 1.

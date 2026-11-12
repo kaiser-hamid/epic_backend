@@ -27,13 +27,15 @@ final class SyncPermissionCatalog
                 array_map(fn ($permission): array => [
                     'name' => (string) $permission->value,
                     'module' => $permission->module(),
+                    'module_label' => $permission->moduleLabel(),
+                    'module_order' => $permission->moduleOrder(),
                     'group' => $permission->group(),
                     'description' => $permission->description(),
                     'created_at' => $now,
                     'updated_at' => $now,
                 ], $this->registry->all()),
                 ['name'],
-                ['module', 'group', 'description', 'updated_at'],
+                ['module', 'module_label', 'module_order', 'group', 'description', 'updated_at'],
             );
 
             $stale = Permission::query()->whereNotIn('name', $this->registry->names())->get();

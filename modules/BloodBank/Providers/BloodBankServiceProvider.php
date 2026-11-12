@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Modules\BloodBank\Enums\BloodBankPermission;
+use Modules\BloodBank\Enums\BloodBankRoleTemplate;
 use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\Collection;
 use Modules\BloodBank\Models\Crossmatch;
@@ -43,6 +44,7 @@ final class BloodBankServiceProvider extends ServiceProvider
         ]);
 
         $permissions->register(BloodBankPermission::class);
+        $permissions->registerRoleTemplates(BloodBankRoleTemplate::class);
 
         Route::prefix('api')->middleware('api')->group(__DIR__.'/../Routes/api.php');
     }

@@ -16,6 +16,7 @@ use Modules\Shared\Doctor\Http\Controllers\DoctorController;
 use Modules\Shared\Patient\Http\Controllers\PatientController;
 use Modules\Shared\Rbac\Http\Controllers\PermissionController;
 use Modules\Shared\Rbac\Http\Controllers\RoleController;
+use Modules\Shared\Rbac\Http\Controllers\UserAccessController;
 use Modules\Shared\Rbac\Http\Controllers\UserBranchPermissionController;
 use Modules\Shared\TestCatalog\Http\Controllers\TestItemController;
 
@@ -58,6 +59,9 @@ Route::prefix('access')->name('access.')->middleware(['erp.auth', 'erp.password-
     Route::put('users/{user}/branches/{branch}/permissions', [UserBranchPermissionController::class, 'update'])->middleware('can:sh.user.assign_permissions')->name('users.branch-permissions.update');
 
     Route::get('branch-options', BranchOptionController::class)->middleware('can:sh.user.assign_permissions')->name('branch-options.index');
+    Route::get('user-access', UserAccessController::class)->middleware('can:sh.user.assign_permissions')->name('user-access.index');
+    Route::get('role-options', [RoleController::class, 'index'])->middleware('can:sh.user.view')->name('role-options.index');
+    Route::get('permission-options', PermissionController::class)->middleware('can:sh.user.view')->name('permission-options.index');
 
     Route::get('permissions', PermissionController::class)->middleware('can:sh.role.view')->name('permissions.index');
 

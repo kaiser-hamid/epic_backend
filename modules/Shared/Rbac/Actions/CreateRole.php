@@ -16,11 +16,12 @@ final class CreateRole
     public function handle(RoleData $data): Role
     {
         return DB::transaction(function () use ($data): Role {
-            $role = Role::create(['name' => $data->name, 'description' => $data->description]);
+            $role = Role::create(['name' => $data->name, 'module' => $data->module, 'description' => $data->description]);
             $role->permissions()->sync(Permission::query()->whereIn('name', $data->permissions)->pluck('id'));
 
             $this->auditLogger->record(AuditAction::RoleCreated, $role, newValues: [
                 'name' => $role->name,
+                'module' => $role->module,
                 'permissions' => collect($data->permissions)->sort()->values()->all(),
             ]);
 

@@ -12,7 +12,7 @@ final class AccountRules
 
     public const PASSWORD_PATTERN = '/^[A-Za-z0-9]+$/';
 
-    public const PASSWORD_MIN = 10;
+    public const PASSWORD_MIN = 6;
 
     public const PASSWORD_MAX = 64;
 
@@ -24,6 +24,7 @@ final class AccountRules
         return [
             'phone.regex' => 'Enter an 11-digit mobile number starting with 01.',
             'password.regex' => 'Use letters and numbers only, without special characters.',
+            'designation.required' => 'Select a designation.',
         ];
     }
 }

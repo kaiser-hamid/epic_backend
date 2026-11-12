@@ -45,6 +45,7 @@ use Modules\Shared\Printing\Services\MpdfRenderer;
 use Modules\Shared\Rbac\Console\SyncPermissionsCommand;
 use Modules\Shared\Rbac\Contracts\AccessChecker;
 use Modules\Shared\Rbac\Enums\SharedPermission;
+use Modules\Shared\Rbac\Enums\SharedRoleTemplate;
 use Modules\Shared\Rbac\Models\Role;
 use Modules\Shared\Rbac\Services\BranchAccessChecker;
 use Modules\Shared\Rbac\Services\PermissionRegistry;
@@ -111,6 +112,7 @@ final class SharedServiceProvider extends ServiceProvider
         ]);
 
         $permissions->register(SharedPermission::class);
+        $permissions->registerRoleTemplates(SharedRoleTemplate::class);
 
         $this->bootAuthorization();
         $this->bootAuthentication($router);

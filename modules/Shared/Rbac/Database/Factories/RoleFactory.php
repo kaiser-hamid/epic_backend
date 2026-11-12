@@ -19,6 +19,7 @@ final class RoleFactory extends Factory
     {
         return [
             'name' => fake()->unique()->jobTitle(),
+            'module' => 'access',
             'description' => fake()->sentence(),
         ];
     }

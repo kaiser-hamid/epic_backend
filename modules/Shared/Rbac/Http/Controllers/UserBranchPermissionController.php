@@ -25,9 +25,6 @@ final class UserBranchPermissionController
 
     public function update(Request $request, User $user, Branch $branch, SyncBranchPermissionsData $data): BranchPermissionsResource
     {
-        return BranchPermissionsResource::make([
-            'branch' => $branch,
-            'permissions' => $this->syncUserBranchPermissions->handle($request->user(), $user, $branch, $data),
-        ]);
+        return BranchPermissionsResource::make($this->syncUserBranchPermissions->handle($request->user(), $user, $branch, $data));
     }
 }
