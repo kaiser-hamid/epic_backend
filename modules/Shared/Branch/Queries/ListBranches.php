@@ -12,6 +12,6 @@ final class ListBranches
      */
     public function get(): Collection
     {
-        return Branch::query()->orderBy('name')->get();
+        return Branch::query()->with('modules:id,branch_id,module')->orderBy('name')->get();
     }
 }

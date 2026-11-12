@@ -29,13 +29,14 @@ final class SyncPermissionCatalog
                     'module' => $permission->module(),
                     'module_label' => $permission->moduleLabel(),
                     'module_order' => $permission->moduleOrder(),
+                    'module_is_optional' => $permission->isOptionalModule(),
                     'group' => $permission->group(),
                     'description' => $permission->description(),
                     'created_at' => $now,
                     'updated_at' => $now,
                 ], $this->registry->all()),
                 ['name'],
-                ['module', 'module_label', 'module_order', 'group', 'description', 'updated_at'],
+                ['module', 'module_label', 'module_order', 'module_is_optional', 'group', 'description', 'updated_at'],
             );
 
             $stale = Permission::query()->whereNotIn('name', $this->registry->names())->get();

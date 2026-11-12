@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Shared\Branch\Database\Factories\BranchFactory;
 
@@ -30,6 +31,16 @@ final class Branch extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Optional modules this branch runs. Modules every branch has are not listed.
+     *
+     * @return HasMany<BranchModule, $this>
+     */
+    public function modules(): HasMany
+    {
+        return $this->hasMany(BranchModule::class)->orderBy('module');
     }
 
     /**

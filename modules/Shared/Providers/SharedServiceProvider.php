@@ -28,8 +28,10 @@ use Modules\Shared\Billing\Contracts\InvoiceCategoryHandler;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
 use Modules\Shared\Billing\Models\Billing;
 use Modules\Shared\Billing\Services\EloquentInvoiceDirectory;
+use Modules\Shared\Branch\Contracts\BranchModules;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
 use Modules\Shared\Branch\Models\Branch;
+use Modules\Shared\Branch\Services\DatabaseBranchModules;
 use Modules\Shared\Branch\Services\SessionCurrentBranch;
 use Modules\Shared\Numbering\Contracts\NumberGenerator;
 use Modules\Shared\Numbering\Services\DatabaseNumberGenerator;
@@ -61,6 +63,7 @@ final class SharedServiceProvider extends ServiceProvider
         LabelRenderer::class => FileLabelRenderer::class,
         AuditLogger::class => EloquentAuditLogger::class,
         CurrentBranch::class => SessionCurrentBranch::class,
+        BranchModules::class => DatabaseBranchModules::class,
         AccessChecker::class => BranchAccessChecker::class,
         NumberGenerator::class => DatabaseNumberGenerator::class,
         InvoiceDirectory::class => EloquentInvoiceDirectory::class,

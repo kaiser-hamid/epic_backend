@@ -41,6 +41,11 @@ enum SharedPermission: string implements PermissionDefinition
         return $this->isBilling() ? 20 : 30;
     }
 
+    public function isOptionalModule(): bool
+    {
+        return false;
+    }
+
     private function isBilling(): bool
     {
         return match ($this) {

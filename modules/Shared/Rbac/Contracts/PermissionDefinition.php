@@ -24,6 +24,13 @@ interface PermissionDefinition
     public function moduleOrder(): int;
 
     /**
+     * True when only some branches run this module (switched on per branch in `sh_branch_modules`). In a
+     * branch without it, its permissions cannot be granted and allow nothing, not even for a super admin.
+     * False means every branch has the module.
+     */
+    public function isOptionalModule(): bool;
+
+    /**
      * Functional group within the module, e.g. "Samples", "Users".
      */
     public function group(): string;

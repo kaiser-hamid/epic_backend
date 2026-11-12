@@ -6,6 +6,9 @@ use Modules\Shared\Rbac\Contracts\PermissionDefinition;
 
 enum BloodBankPermission: string implements PermissionDefinition
 {
+    /** Module key; also the key a branch lists in `sh_branch_modules` when it runs a blood bank. */
+    public const string MODULE = 'blood-bank';
+
     case CaseView = 'bb.case.view';
     case CaseUpdate = 'bb.case.update';
     case DonorView = 'bb.donor.view';
@@ -28,7 +31,7 @@ enum BloodBankPermission: string implements PermissionDefinition
 
     public function module(): string
     {
-        return 'blood-bank';
+        return self::MODULE;
     }
 
     public function moduleLabel(): string
@@ -39,6 +42,14 @@ enum BloodBankPermission: string implements PermissionDefinition
     public function moduleOrder(): int
     {
         return 10;
+    }
+
+    /**
+     * Only some branches run a blood bank (East Gate for now).
+     */
+    public function isOptionalModule(): bool
+    {
+        return true;
     }
 
     public function group(): string

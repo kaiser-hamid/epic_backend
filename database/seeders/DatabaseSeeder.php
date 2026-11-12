@@ -26,8 +26,21 @@ class DatabaseSeeder extends Seeder
         $seedRoleTemplates->handle();
 
         // The branch code is also the prefix of its invoice numbers (e.g. NE2611120001).
-        foreach (['NE' => 'East Gate', 'NM' => 'Medical Main Gate', 'NA' => 'Anderkilla', 'NH' => 'Halishahar', 'NG' => 'Golden Core'] as $code => $name) {
-            Branch::query()->firstOrCreate(['code' => $code], ['name' => $name, 'is_active' => true]);
+        // Optional modules per branch: only East Gate runs a blood bank for now.
+        $branches = [
+            'NE' => ['East Gate', ['blood-bank']],
+            'NM' => ['Medical Main Gate', []],
+            'NA' => ['Anderkilla', []],
+            'NH' => ['Halishahar', []],
+            'NG' => ['Golden Core', []],
+        ];
+
+        foreach ($branches as $code => [$name, $modules]) {
+            $branch = Branch::query()->firstOrCreate(['code' => $code], ['name' => $name, 'is_active' => true]);
+
+            foreach ($modules as $module) {
+                BranchModule::query()->firstOrCreate(['branch_id' => $branch->id, 'module' => $module]);
+            }
         }
 
         $this->call([DepartmentSeeder::class, TestItemSeeder::class, ComponentTypeSeeder::class]);

@@ -26,7 +26,7 @@ final class ListUserBranchPermissions
         $roles = $this->listRoles->get();
 
         return UserBranchPermission::query()
-            ->with(['branch', 'permission'])
+            ->with(['branch.modules', 'permission'])
             ->where('user_id', $user->getKey())
             ->get()
             ->groupBy('branch_id')

@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Branch\Models\Branch;
+use Modules\Shared\Branch\Models\BranchModule;
 use Modules\Shared\Branch\Services\SessionCurrentBranch;
 use Modules\Shared\Rbac\Actions\SyncPermissionCatalog;
 use Modules\Shared\Rbac\Models\Permission;
@@ -51,18 +52,35 @@ expect()->extend('toBeOne', function () {
 */
 
 /**
- * Grant permissions to a user in one branch, syncing the permission catalog first.
+ * Grant permissions to a user in one branch, syncing the permission catalog first. A permission of an
+ * optional module (e.g. Blood Bank) also switches that module on in the branch, as an admin must first.
  */
 function grantInBranch(User $user, Branch $branch, BackedEnum|string ...$permissions): void
 {
     app(SyncPermissionCatalog::class)->handle();
 
     foreach ($permissions as $permission) {
+        $entry = Permission::where('name', $permission instanceof BackedEnum ? $permission->value : $permission)->firstOrFail();
+
+        if ($entry->module_is_optional) {
+            enableModulesIn($branch, $entry->module);
+        }
+
         UserBranchPermission::create([
             'user_id' => $user->id,
             'branch_id' => $branch->id,
-            'permission_id' => Permission::where('name', $permission instanceof BackedEnum ? $permission->value : $permission)->value('id'),
+            'permission_id' => $entry->id,
         ]);
+    }
+}
+
+/**
+ * Switch optional modules (e.g. "blood-bank") on in a branch.
+ */
+function enableModulesIn(Branch $branch, string ...$modules): void
+{
+    foreach ($modules as $module) {
+        BranchModule::query()->firstOrCreate(['branch_id' => $branch->id, 'module' => $module]);
     }
 }
 

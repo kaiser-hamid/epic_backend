@@ -7,7 +7,8 @@ use Modules\Shared\Auth\Models\User;
 
 /**
  * Answers "may this user do X in branch Y". The branch always comes first: a grant in one branch never
- * applies to another. Super admins pass every check. Roles are templates only and are never consulted.
+ * applies to another. Super admins pass every check, except for a module the branch does not run (an
+ * optional module such as Blood Bank). Roles are templates only and are never consulted.
  */
 interface AccessChecker
 {

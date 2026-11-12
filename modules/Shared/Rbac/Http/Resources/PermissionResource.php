@@ -24,6 +24,7 @@ final class PermissionResource extends JsonResource
             'module' => $this->module,
             'module_label' => $this->module_label,
             'module_order' => $this->module_order,
+            'module_is_optional' => $this->module_is_optional,
             'group' => $this->group,
             'description' => $this->description,
         ];

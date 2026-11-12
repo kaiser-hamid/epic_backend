@@ -79,6 +79,24 @@ final class PermissionRegistry
     }
 
     /**
+     * @return (PermissionDefinition&BackedEnum)|null
+     */
+    public function find(string $name): ?PermissionDefinition
+    {
+        return $this->permissions[$name] ?? null;
+    }
+
+    /**
+     * The optional module a permission belongs to, or null when every branch has its module (or it is unknown).
+     */
+    public function optionalModuleOf(string $name): ?string
+    {
+        $permission = $this->find($name);
+
+        return $permission !== null && $permission->isOptionalModule() ? $permission->module() : null;
+    }
+
+    /**
      * @return list<RoleTemplateDefinition&BackedEnum>
      */
     public function roleTemplates(): array

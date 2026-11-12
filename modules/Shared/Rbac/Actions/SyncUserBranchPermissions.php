@@ -9,18 +9,22 @@ use Modules\Shared\Auth\Exceptions\CannotChangeOwnAccount;
 use Modules\Shared\Auth\Exceptions\SuperAdminProtected;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Auth\Services\AccountGuard;
+use Modules\Shared\Branch\Contracts\BranchModules;
 use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Rbac\Data\SyncBranchPermissionsData;
+use Modules\Shared\Rbac\Exceptions\ModuleNotEnabledForBranch;
 use Modules\Shared\Rbac\Models\Permission;
 use Modules\Shared\Rbac\Models\Role;
 use Modules\Shared\Rbac\Models\UserBranchPermission;
 use Modules\Shared\Rbac\Queries\ListRoles;
+use Modules\Shared\Rbac\Services\PermissionRegistry;
 use Modules\Shared\Rbac\Services\RoleMatcher;
 use Spatie\LaravelData\Optional;
 
 /**
  * Replaces what a user may do in one branch with exactly the given list. Other branches are untouched.
- * An admin may assign in any branch, but never to their own account (no self-escalation).
+ * An admin may assign in any branch, but never to their own account (no self-escalation), and never a
+ * permission of an optional module (e.g. Blood Bank) the branch does not run.
  */
 final class SyncUserBranchPermissions
 {
@@ -29,16 +33,19 @@ final class SyncUserBranchPermissions
         private readonly AuditLogger $auditLogger,
         private readonly ListRoles $listRoles,
         private readonly RoleMatcher $roleMatcher,
+        private readonly PermissionRegistry $registry,
+        private readonly BranchModules $branchModules,
     ) {}
 
     /**
      * @return array{branch: Branch, permissions: list<string>, matched_roles: list<array{id: int, name: string}>, other_permissions: list<string>}
      *
-     * @throws SuperAdminProtected|CannotChangeOwnAccount
+     * @throws SuperAdminProtected|CannotChangeOwnAccount|ModuleNotEnabledForBranch
      */
     public function handle(User $actor, User $user, Branch $branch, SyncBranchPermissionsData $data): array
     {
         $this->accountGuard->ensureCanManage($actor, $user);
+        $this->ensureModulesRunIn($branch, $data->permissions);
 
         $permissions = DB::transaction(function () use ($actor, $user, $branch, $data): array {
             $wanted = Permission::query()->whereIn('name', $data->permissions)->pluck('id', 'name');
@@ -86,10 +93,33 @@ final class SyncUserBranchPermissions
         });
 
         return [
-            'branch' => $branch,
+            'branch' => $branch->load('modules'),
             'permissions' => $permissions,
             ...$this->roleMatcher->match($permissions, $this->listRoles->get()),
         ];
+    }
+
+    /**
+     * @param  list<string>  $permissions
+     *
+     * @throws ModuleNotEnabledForBranch
+     */
+    private function ensureModulesRunIn(Branch $branch, array $permissions): void
+    {
+        $enabledModules = $this->branchModules->enabledIn($branch->getKey());
+        $missingLabels = [];
+
+        foreach ($permissions as $name) {
+            $module = $this->registry->optionalModuleOf($name);
+
+            if ($module !== null && ! in_array($module, $enabledModules, true)) {
+                $missingLabels[$module] = $this->registry->find($name)?->moduleLabel() ?? $module;
+            }
+        }
+
+        if ($missingLabels !== []) {
+            throw new ModuleNotEnabledForBranch(array_values($missingLabels), $branch->name);
+        }
     }
 
     /**

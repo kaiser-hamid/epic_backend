@@ -4,7 +4,7 @@ Reference for how access works in the ERP: where permissions come from, how they
 
 ## The rule in one line
 
-> **Allowed = active user AND (super admin OR (holds the permission in the session's branch AND, for a record, the record is in that branch)).**
+> **Allowed = active user AND the session's branch runs the permission's module AND (super admin OR (holds the permission in the session's branch AND, for a record, the record is in that branch)).**
 
 Access is **branch first, then permission**. A grant in one branch never applies in another. Roles are templates for ticking boxes on screen; they never grant anything.
 
@@ -80,6 +80,14 @@ Unique `(user_id, branch_id, permission_id)`. One row per permission per branch.
 ### `sh_role_permissions`: template contents
 `role_id` (FK `sh_roles`), `permission_id` (FK `sh_permissions`), primary key on both.
 
+### `sh_branch_modules`: optional modules per branch
+| Column | Meaning |
+|---|---|
+| `branch_id` | FK `sh_branches` |
+| `module` | Module key of an **optional** module, e.g. `blood-bank` |
+
+Unique `(branch_id, module)`. Only optional modules are listed: a module whose permission enum returns `isOptionalModule() = true` (today only Blood Bank). Every other module (Billing, User & Permission, and later Daycare and Physiotherapy) runs in every branch and is never listed. `sh_permissions.module_is_optional` mirrors the flag (filled by `permissions:sync`). Today only East Gate (NE) runs `blood-bank`. Edited by a super admin with the branch (`PUT /api/access/branches/{branch}` with `modules`), audited as `branch.updated`; owned by `Shared/Branch` (`Models/BranchModule`, `Contracts/BranchModules`).
+
 ### Related
 - `users.is_super_admin`, `users.is_active`: checked before any grant.
 - `sh_branches` (`code`, `name`, `is_active`, …): grants point at a branch; only active branches are offered at login.
@@ -120,10 +128,10 @@ Unique `(user_id, branch_id, permission_id)`. One row per permission per branch.
 ### 0. Deploy / setup
 1. `php artisan migrate`.
 2. `php artisan permissions:sync` (`Console/SyncPermissionsCommand`):
-   - `SyncPermissionCatalog` upserts every enum case into `sh_permissions` (name, module, module_label, module_order, group, description) and removes stale unused ones.
+   - `SyncPermissionCatalog` upserts every enum case into `sh_permissions` (name, module, module_label, module_order, module_is_optional, group, description) and removes stale unused ones.
    - `SeedRoleTemplates` creates each default template that does not exist **by name, including deleted ones** (`sh_roles` + `sh_role_permissions`, through `CreateRole`, so it is audited). Admin edits are never overwritten; a deleted default is not brought back.
    - `DatabaseSeeder` runs both too.
-3. Branches: `DatabaseSeeder` creates East Gate (NE), Medical Main Gate (NM), Anderkilla (NA), Halishahar (NH), Golden Core (NG). Later branches are managed by a super admin (`/api/access/branches`). The branch `code` is the prefix of its invoice numbers.
+3. Branches: `DatabaseSeeder` creates East Gate (NE), Medical Main Gate (NM), Anderkilla (NA), Halishahar (NH), Golden Core (NG), and switches Blood Bank on for East Gate only (`sh_branch_modules`). Later branches are managed by a super admin (`/api/access/branches`). The branch `code` is the prefix of its invoice numbers.
 4. First admin: `php artisan auth:super-admin {username}` sets `users.is_super_admin` (`--revoke` clears it).
 
 ### 1. Create a user
@@ -134,10 +142,11 @@ Screen: User Management → Permissions (`sh.user.assign_permissions`).
 
 1. **User list:** `GET /api/access/user-access?filter[search]=…` (`Queries/ListUserAccess`). Per user: `permission_count` (all branches) and, per branch, `permission_count`, `matched_roles` (templates fully held, via `RoleMatcher`) and `other_permission_count`.
 2. **Open a user:** the page loads `GET /api/access/users/{user}` (abilities), `GET …/users/{user}/branch-permissions`, `GET /api/access/branch-options`, `GET /api/access/permission-options`, `GET /api/access/role-options`.
-3. **Edit (in the browser only):** module headings → templates → permissions. Ticking a template ticks all its permissions; a partly ticked template shows a dash. Permissions in no template sit under "Other … permissions" of their module. Nothing is written yet.
+3. **Edit (in the browser only):** only the modules the branch runs are shown (common modules always; an optional one such as Blood Bank only if listed in the branch's `modules`). Module headings → templates → permissions. Ticking a template ticks all its permissions; a partly ticked template shows a dash. Permissions in no template sit under "Other … permissions" of their module. Nothing is written yet.
 4. **Copy from…** (optional, still in the browser): pick a user; their permissions **in the branch on screen** (`GET …/users/{source}/branch-permissions`) replace the draft.
 5. **Save** (branch on screen only): `PUT /api/access/users/{user}/branches/{branch}/permissions` with `{permissions: [...], applied_role_ids: [...]}` → `Actions/SyncUserBranchPermissions`:
    - `AccountGuard::ensureCanManage`: not your own account (`CANNOT_CHANGE_OWN_ACCOUNT`, 422), not a super admin unless you are one (`SUPER_ADMIN_PROTECTED`, 403).
+   - No permission of an optional module the branch does not run (`MODULE_NOT_ENABLED_FOR_BRANCH`, 422).
    - In one transaction: deletes rows of `sh_user_branch_permissions` no longer wanted, inserts new ones with `granted_by` = the admin.
    - Audit `user.branch_permissions_synced` (subject = the user): old `{branch_id, removed}`, new `{branch_id, added, applied_roles}`. `applied_role_ids` is recorded only; it never changes what is granted.
    - Response: the branch with `permissions`, `matched_roles`, `other_permissions`.
@@ -153,9 +162,10 @@ The branch is fixed for the session; working elsewhere means signing out and in 
 ### 4. Every request
 1. Route middleware `can:bb.sample.collect` → `Gate::before` → `BranchAccessChecker::allows()`:
    1. `users.is_active` false → deny.
-   2. `users.is_super_admin` → allow.
-   3. Session branch missing → deny.
-   4. Row exists in `sh_user_branch_permissions` for (user, session branch, permission) → allow.
+   2. The permission belongs to an optional module the session branch does not run (`sh_branch_modules`) → deny, **even for a super admin**.
+   3. `users.is_super_admin` → allow.
+   4. Session branch missing → deny.
+   5. Row exists in `sh_user_branch_permissions` for (user, session branch, permission) → allow.
 2. Records with a `branch_id` also go through their Policy, which calls `AccessChecker::allowsOnRecord()`: the record's branch must equal the session branch, then the same check as above.
 3. No cache: a saved grant applies on the user's very next request.
 
@@ -173,6 +183,7 @@ Abilities that are not catalog names fall through to Policies as usual.
 | User deactivated | `allows()` denies everything; login offers no branch. Grants are kept for reactivation. |
 | User locked | Login offers no branch until unlocked. |
 | Branch deactivated | Not offered at login; users signed in there get `BRANCH_INACTIVE` (401) and are logged out. Grants stay; the screen still lists the branch so they can be cleared. |
+| Optional module switched off for a branch | Its permissions there allow nothing at once and leave `me.permissions` (the menu). The grant rows stay; the Permissions screen hides the module, notes the leftovers, and the next Save there removes them (audited). |
 | Permission removed from code | `permissions:sync` deletes it if unused, else keeps it and warns. |
 
 ## API summary (`/api/access`)
@@ -182,14 +193,14 @@ Abilities that are not catalog names fall through to Policies as usual.
 | `GET user-access` | `sh.user.assign_permissions` | Permissions screen user list |
 | `GET users/{user}/branch-permissions` | `sh.user.view` | A user's grants per branch (+ matched roles) |
 | `PUT users/{user}/branches/{branch}/permissions` | `sh.user.assign_permissions` | Replace a user's grants in one branch |
-| `GET branch-options` | `sh.user.assign_permissions` | Active branches to grant in |
+| `GET branch-options` | `sh.user.assign_permissions` | Active branches to grant in, with the optional `modules` each runs |
 | `GET permission-options` | `sh.user.view` | Catalog with module headings |
 | `GET role-options` | `sh.user.view` | Templates with module and permissions |
 | `GET permissions` | `sh.role.view` | Catalog (role management) |
 | `GET/POST/PUT/DELETE roles…` | `sh.role.view` / `sh.role.manage` | Role template management |
 | `GET/POST/PUT branches…` | super admin | Branch management |
 
-Errors use the central format: `FORBIDDEN` (403), `VALIDATION_FAILED` (422), `CANNOT_CHANGE_OWN_ACCOUNT` (422), `SUPER_ADMIN_PROTECTED` (403).
+Errors use the central format: `FORBIDDEN` (403), `VALIDATION_FAILED` (422), `CANNOT_CHANGE_OWN_ACCOUNT` (422), `MODULE_NOT_ENABLED_FOR_BRANCH` (422: a permission of an optional module the branch does not run), `SUPER_ADMIN_PROTECTED` (403).
 
 ## Audit trail
 

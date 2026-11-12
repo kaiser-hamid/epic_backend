@@ -16,6 +16,7 @@ use Modules\Shared\TestCatalog\Models\TestItem;
 
 beforeEach(function () {
     $this->branch = Branch::factory()->create();
+    enableModulesIn($this->branch, 'blood-bank');
     $this->cashier = User::factory()->create();
     grantInBranch($this->cashier, $this->branch, SharedPermission::BillingCreate);
 
@@ -89,6 +90,28 @@ it('opens no case for a general bill, such as the additional donor charge', func
         ->assertJsonPath('data.category', 'general');
 
     expect(PatientCase::count())->toBe(0);
+});
+
+it('refuses a Blood Bank bill in a branch without a blood bank and saves nothing', function () {
+    $branch = Branch::factory()->create();
+    grantInBranch($this->cashier, $branch, SharedPermission::BillingCreate);
+
+    signInToBranch($this, $this->cashier, $branch)
+        ->postJson('/api/billing/invoices', [
+            'idempotency_key' => (string) Str::uuid(),
+            'patient_type_id' => PatientType::where('code', PatientType::GENERAL)->value('id'),
+            'delivery_at' => now()->toIso8601String(),
+            'paid_amount' => 0,
+            'patient_id' => PatientMaster::factory()->create()->id,
+            'referral' => ['is_self_referral' => true],
+            'items' => [['test_item_id' => $this->pcv->test_item_id]],
+            'category_details' => ['care_type' => 'out'],
+        ])
+        ->assertUnprocessable()
+        ->assertJson(['code' => 'MODULE_NOT_ENABLED_FOR_BRANCH']);
+
+    expect(Billing::where('category', 'blood_bank')->exists())->toBeFalse()
+        ->and(PatientCase::count())->toBe(0);
 });
 
 it('leaves no bill behind when the case cannot be opened', function () {
