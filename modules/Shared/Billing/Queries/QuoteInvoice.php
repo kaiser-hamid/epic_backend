@@ -5,7 +5,6 @@ namespace Modules\Shared\Billing\Queries;
 use Modules\Shared\Billing\Data\PricedInvoice;
 use Modules\Shared\Billing\Data\QuoteInvoiceData;
 use Modules\Shared\Billing\Exceptions\DiscountPolicyNotAllowed;
-use Modules\Shared\Billing\Exceptions\InvoiceCategoryMixed;
 use Modules\Shared\Billing\Services\InvoicePricer;
 
 /**
@@ -16,7 +15,6 @@ final class QuoteInvoice
     public function __construct(private readonly InvoicePricer $pricer) {}
 
     /**
-     * @throws InvoiceCategoryMixed
      * @throws DiscountPolicyNotAllowed
      */
     public function get(QuoteInvoiceData $data): PricedInvoice

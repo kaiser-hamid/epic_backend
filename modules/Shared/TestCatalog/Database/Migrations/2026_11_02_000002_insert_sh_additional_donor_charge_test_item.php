@@ -19,6 +19,7 @@ return new class extends Migration
         DB::table('sh_departments')->insertOrIgnore([
             'code' => 'BB',
             'name' => 'Blood Bank',
+            'type' => 'non_lab',
             'is_active' => true,
             'created_at' => $now,
             'updated_at' => $now,

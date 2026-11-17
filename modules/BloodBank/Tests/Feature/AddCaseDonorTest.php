@@ -18,7 +18,7 @@ beforeEach(function () {
     $this->executive = User::factory()->create();
     grantInBranch($this->executive, $this->branch, BloodBankPermission::CaseUpdate);
 
-    $this->caseBill = Billing::factory()->bloodBank()->create(['invoice_no' => 'NB2611020001', 'branch_id' => $this->branch->id]);
+    $this->caseBill = Billing::factory()->create(['invoice_no' => 'NB2611020001', 'branch_id' => $this->branch->id]);
     $this->case = PatientCase::factory()->create([
         'branch_id' => $this->branch->id,
         'patient_master_id' => $this->caseBill->patient_master_id,

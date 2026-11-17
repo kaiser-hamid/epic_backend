@@ -26,8 +26,9 @@ use Spatie\LaravelData\Support\Validation\Constraints\WhereConstraint;
  *
  * - `idempotency_key`: one UUID per form; resubmitting it returns the bill already saved instead of a second one.
  * - `invoice_no`: the vendor's number while both billing systems run; when blank the branch's next number is used.
- * - `category_details`: fields owned by the module of the bill's category (a Blood Bank bill's `care_type`);
- *   validated by that module, prohibited for a category without one.
+ * - `category_details`: fields owned by the modules whose items are on the bill (Blood Bank items need
+ *   `care_type`); validated by those modules, prohibited when no item belongs to a module. Items of any category
+ *   may share one bill.
  * - `delivery_at`: when the reports will be ready, printed on the bill; today or later.
  * - `paid_amount`: paisa the patient pays now, at most the payable the server computes. The counter's "Given" and
  *   "Change" are only a convenience on the form and are not sent.

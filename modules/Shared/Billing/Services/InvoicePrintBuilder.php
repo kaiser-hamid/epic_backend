@@ -2,7 +2,6 @@
 
 namespace Modules\Shared\Billing\Services;
 
-use Illuminate\Support\Collection;
 use Modules\Shared\Billing\Models\Billing;
 use Modules\Shared\Billing\Models\BillingItem;
 use Modules\Shared\Billing\Queries\ShowInvoice;
@@ -10,17 +9,22 @@ use Modules\Shared\Doctor\Models\Doctor;
 use Modules\Shared\Printing\Contracts\PdfRenderer;
 use Modules\Shared\Printing\Data\PdfDocument;
 use Modules\Shared\Printing\Data\PdfPageSetup;
+use Modules\Shared\TestCatalog\Enums\DepartmentType;
+use Modules\Shared\TestCatalog\Models\DepartmentRoom;
 
 /**
  * Builds the bill PDF printed at the counter, laid out like the paper bill and printed on the pre-printed pad
  * (A5, 148 × 210 mm; the top and bottom 27 mm hold the pad's own header and QR footer, so nothing is drawn there).
  *
- * One print is the Customer Copy (every item with its price, the totals, the payment and the amount in words)
- * followed by one Non Lab Copy per department on the bill: the same header, that department's items without
- * prices, and the department's name and room. Recording the print is the caller's job.
+ * One print is the Customer Copy (every item with its price, the totals, the payment and the amount in words),
+ * then one Lab Copy with every lab item (Pathology, the branch's sample collection room), then one Non-Lab Copy per
+ * non-lab department on the bill (its room in the bill's branch). The later copies repeat the header and list
+ * their items without prices. Recording the print is the caller's job.
  */
 final class InvoicePrintBuilder
 {
+    private const string LAB_DEPARTMENT = 'Pathology (Sample Collection Zone)';
+
     private const string BILL_DATE = 'd/m/y h:i A';
 
     private const string DELIVERY_DATE = 'd/m/y h:i:s A';
@@ -39,12 +43,12 @@ final class InvoicePrintBuilder
      */
     public function build(Billing $billing, bool $isDuplicate = false, bool $isPreview = false): PdfDocument
     {
-        $billing = $this->showInvoice->get($billing)->loadMissing('items.testItem.department');
+        $billing = $this->showInvoice->get($billing)->loadMissing(['branch', 'items.testItem.department']);
 
         $content = $this->pdfRenderer->render('billing::invoice', [
             'header' => $this->header($billing, $isDuplicate, $isPreview),
             'customerCopy' => $this->customerCopy($billing),
-            'departmentCopies' => $this->departmentCopies($billing),
+            'copies' => $this->copies($billing),
         ], new PdfPageSetup(
             width: 148,
             height: 210,
@@ -112,25 +116,50 @@ final class InvoicePrintBuilder
     }
 
     /**
-     * One Non Lab Copy per department, in the order the department first appears on the bill.
+     * The copies after the Customer Copy: the Lab Copy when the bill has lab items, then one Non-Lab Copy per
+     * non-lab department in the order the department first appears on the bill. An item whose department is gone
+     * counts as lab.
      *
-     * @return list<array{department: string, items: list<array<string, ?string>>}>
+     * @return list<array{title: string, department: string, items: list<array<string, ?string>>}>
      */
-    private function departmentCopies(Billing $billing): array
+    private function copies(Billing $billing): array
     {
-        return $billing->items
-            ->groupBy(fn (BillingItem $item): int => $item->testItem->department_id)
-            ->map(function (Collection $items): array {
-                $department = $items->first()->testItem->department;
-                $name = $department?->name ?? $items->first()->testItem->department_name;
+        [$nonLabItems, $labItems] = $billing->items
+            ->partition(fn (BillingItem $item): bool => $item->testItem->department?->type === DepartmentType::NonLab);
 
-                return [
-                    'department' => $department?->room_no === null ? $name : "{$name} (Room No. {$department->room_no})",
-                    'items' => $this->lines($items, withPrice: false),
-                ];
-            })
-            ->values()
-            ->all();
+        $copies = [];
+
+        if ($labItems->isNotEmpty()) {
+            $copies[] = [
+                'title' => 'Lab Copy',
+                'department' => $this->withRoom(self::LAB_DEPARTMENT, $billing->branch?->lab_room_no),
+                'items' => $this->lines($labItems, withPrice: false),
+            ];
+        }
+
+        if ($nonLabItems->isEmpty()) {
+            return $copies;
+        }
+
+        $rooms = DepartmentRoom::query()->where('branch_id', $billing->branch_id)->pluck('room_no', 'department_id');
+
+        foreach ($nonLabItems->groupBy(fn (BillingItem $item): int => $item->testItem->department_id) as $departmentId => $items) {
+            $copies[] = [
+                'title' => 'Non-Lab Copy',
+                'department' => $this->withRoom($items->first()->testItem->department->name, $rooms->get($departmentId)),
+                'items' => $this->lines($items, withPrice: false),
+            ];
+        }
+
+        return $copies;
+    }
+
+    /**
+     * "X-Ray, Room No. 105", or just the name when the branch has no room for it.
+     */
+    private function withRoom(string $name, ?string $roomNo): string
+    {
+        return $roomNo === null ? $name : "{$name}, Room No. {$roomNo}";
     }
 
     /**

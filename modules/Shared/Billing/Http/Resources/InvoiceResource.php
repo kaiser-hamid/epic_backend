@@ -6,9 +6,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Shared\Billing\Models\Billing;
 use Modules\Shared\Patient\Http\Resources\PatientResource;
+use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 
 /**
- * A bill. Money is integer paisa: `subtotal_amount` − `discount_amount` + `rounding_amount` = `amount` (payable).
+ * A bill. `categories` lists the distinct categories of its lines (a bill may mix them; sent with `items`).
+ * Money is integer paisa: `subtotal_amount` − `discount_amount` + `rounding_amount` = `amount` (payable).
  * `discount` is the policy snapshot the bill applied, or null. `paid_amount` was paid at the counter and
  * `due_amount` = `amount` − `paid_amount`. `delivery_at` is null only on bills saved before it existed.
  *
@@ -25,7 +27,10 @@ final class InvoiceResource extends JsonResource
             'id' => $this->id,
             'invoice_no' => $this->invoice_no,
             'branch_id' => $this->branch_id,
-            'category' => $this->category->value,
+            'categories' => $this->whenLoaded('items', fn (): array => array_map(
+                fn (TestItemCategory $category): string => $category->value,
+                $this->categories(),
+            )),
             'status' => $this->status->value,
             'patient_type' => $this->whenLoaded('patientType', fn () => [
                 'id' => $this->patientType->id,

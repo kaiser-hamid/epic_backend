@@ -9,9 +9,10 @@ use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 use Spatie\LaravelData\Data;
 
 /**
- * Lets the module that owns a bill category open its own record from a saved bill (a Blood Bank bill opens a
- * Blood Bank case), so Shared billing never depends on that module. A module tags its implementation with
- * `TAG` in its service provider; at most one handler per category.
+ * Lets the module that owns an item category open its own record from a saved bill holding items of that category
+ * (Blood Bank items open a Blood Bank case), so Shared billing never depends on that module. A bill may mix
+ * categories; each handler is called only when its category is on the bill and receives only its own lines. A
+ * module tags its implementation with `TAG` in its service provider; at most one handler per category.
  *
  * Both methods run inside the bill's transaction: anything thrown rolls the bill back.
  */

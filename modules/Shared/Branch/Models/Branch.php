@@ -16,7 +16,7 @@ use Modules\Shared\Branch\Database\Factories\BranchFactory;
  * A physical branch of the company. Every permission is granted per branch, and a session works in exactly one.
  */
 #[Table('sh_branches')]
-#[Fillable(['code', 'name', 'address', 'phone', 'is_active'])]
+#[Fillable(['code', 'name', 'address', 'phone', 'lab_room_no', 'is_active'])]
 #[UseFactory(BranchFactory::class)]
 final class Branch extends Model
 {

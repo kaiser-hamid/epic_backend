@@ -4,6 +4,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
+/**
+ * `type` (`DepartmentType`): `lab` items print together on the bill's Lab Copy, each `non_lab` department on its
+ * own Non-Lab Copy.
+ */
 return new class extends Migration
 {
     public function up(): void
@@ -12,6 +16,7 @@ return new class extends Migration
             $table->id();
             $table->string('code')->unique();
             $table->string('name')->index();
+            $table->string('type')->default('lab');
             $table->boolean('is_active')->default(true);
             $table->timestampsTz();
             $table->softDeletesTz();

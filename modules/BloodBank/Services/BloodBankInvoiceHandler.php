@@ -15,8 +15,9 @@ use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 use Spatie\LaravelData\Data;
 
 /**
- * Plugs Blood Bank into Shared billing: a Blood Bank bill must carry "Care of", may only be issued in a branch
- * that runs a blood bank, and saving it opens its case.
+ * Plugs Blood Bank into Shared billing: a bill with Blood Bank items (it may also carry other items) must carry
+ * "Care of", may only be issued in a branch that runs a blood bank, and saving it opens its case from its Blood
+ * Bank lines only.
  */
 final class BloodBankInvoiceHandler implements InvoiceCategoryHandler
 {

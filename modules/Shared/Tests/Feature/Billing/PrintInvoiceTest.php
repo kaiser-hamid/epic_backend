@@ -10,6 +10,7 @@ use Modules\Shared\Printing\Contracts\PdfRenderer;
 use Modules\Shared\Printing\Models\PrintLog;
 use Modules\Shared\Rbac\Enums\SharedPermission;
 use Modules\Shared\TestCatalog\Models\Department;
+use Modules\Shared\TestCatalog\Models\DepartmentRoom;
 use Modules\Shared\TestCatalog\Models\TestItem;
 
 beforeEach(function () {
@@ -54,13 +55,18 @@ it('prints the bill as a PDF and logs it, a reprint needing a reason', function 
     expect(PrintLog::where('document_type', BillingPrintDocumentType::Invoice->value)->pluck('is_reprint')->all())->toBe([false, true]);
 });
 
-it('prints the Customer Copy with prices and one Non Lab Copy per department, Original first and Duplicate after', function () {
+it('prints the Customer Copy with prices, one Lab Copy and one Non-Lab Copy per non-lab department, Original first and Duplicate after', function () {
     $renders = captureRenders();
-    $bloodBank = Department::factory()->create(['name' => 'Blood Bank', 'room_no' => '900']);
-    $hormone = Department::factory()->create(['name' => 'Hormone', 'room_no' => null]);
+    $this->branch->update(['lab_room_no' => '201']);
+    $bloodBank = Department::factory()->nonLab()->create(['name' => 'Blood Bank']);
+    $xRay = Department::factory()->nonLab()->create(['name' => 'X-Ray']);
+    $haematology = Department::factory()->create(['name' => 'Haematology']);
+    $hormone = Department::factory()->create(['name' => 'Hormone']);
+    DepartmentRoom::create(['branch_id' => $this->branch->id, 'department_id' => $bloodBank->id, 'room_no' => '900']);
+    DepartmentRoom::create(['branch_id' => Branch::factory()->create()->id, 'department_id' => $xRay->id, 'room_no' => '105']);
     $this->billing->items()->delete();
-    $this->billing->update(['subtotal_amount' => 300000, 'amount' => 300000, 'paid_amount' => 200000]);
-    foreach ([[$bloodBank, 100000], [$hormone, 120000], [$bloodBank, 80000]] as [$department, $amount]) {
+    $this->billing->update(['subtotal_amount' => 400000, 'amount' => 400000, 'paid_amount' => 300000]);
+    foreach ([[$bloodBank, 100000], [$haematology, 50000], [$xRay, 70000], [$hormone, 120000], [$bloodBank, 60000]] as [$department, $amount]) {
         BillingItem::factory()->create([
             'billing_id' => $this->billing->id,
             'test_item_id' => TestItem::factory()->create(['department_id' => $department->id])->id,
@@ -75,13 +81,16 @@ it('prints the Customer Copy with prices and one Non Lab Copy per department, Or
     expect($original['header']['copy_status'])->toBe('Original Copy')
         ->and($duplicate['header']['copy_status'])->toBe('Duplicate Copy')
         ->and($original['header']['is_paid'])->toBeFalse()
-        ->and($original['customerCopy']['items'])->toHaveCount(3)
+        ->and($original['customerCopy']['items'])->toHaveCount(5)
         ->and($original['customerCopy']['items'][0]['price'])->toBe('1,000.00')
         ->and($original['customerCopy']['due'])->toBe('1,000.00')
-        ->and($original['customerCopy']['in_words'])->toBe('Taka Three Thousand Only')
-        ->and(array_column($original['departmentCopies'], 'department'))->toBe(['Blood Bank (Room No. 900)', 'Hormone'])
-        ->and($original['departmentCopies'][0]['items'])->toHaveCount(2)
-        ->and($original['departmentCopies'][0]['items'][0]['price'])->toBeNull();
+        ->and($original['customerCopy']['in_words'])->toBe('Taka Four Thousand Only')
+        ->and(array_map(fn (array $copy): array => [$copy['title'], $copy['department'], count($copy['items'])], $original['copies']))->toBe([
+            ['Lab Copy', 'Pathology (Sample Collection Zone), Room No. 201', 2],
+            ['Non-Lab Copy', 'Blood Bank, Room No. 900', 2],
+            ['Non-Lab Copy', 'X-Ray', 1],
+        ])
+        ->and($original['copies'][0]['items'][0]['price'])->toBeNull();
 });
 
 it('previews the bill without logging a print', function () {

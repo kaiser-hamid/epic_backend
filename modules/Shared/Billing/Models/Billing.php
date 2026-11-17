@@ -22,7 +22,7 @@ use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 
 #[Table('sh_billing')]
 #[Fillable([
-    'invoice_no', 'idempotency_key', 'patient_master_id', 'branch_id', 'category', 'patient_type_id', 'subtotal_amount',
+    'invoice_no', 'idempotency_key', 'patient_master_id', 'branch_id', 'patient_type_id', 'subtotal_amount',
     'discount_amount', 'rounding_amount', 'amount', 'paid_amount', 'status', 'billed_at', 'delivery_at', 'created_by',
 ])]
 #[UseFactory(BillingFactory::class)]
@@ -38,7 +38,6 @@ final class Billing extends Model
     protected function casts(): array
     {
         return [
-            'category' => TestItemCategory::class,
             'status' => BillingStatus::class,
             'billed_at' => 'datetime',
             'delivery_at' => 'datetime',
@@ -51,6 +50,20 @@ final class Billing extends Model
     public function dueAmount(): int
     {
         return $this->amount - $this->paid_amount;
+    }
+
+    /**
+     * The distinct categories of the bill's lines, in the order they first appear. Needs `items` loaded.
+     *
+     * @return list<TestItemCategory>
+     */
+    public function categories(): array
+    {
+        return $this->items
+            ->map(fn (BillingItem $item): TestItemCategory => $item->category)
+            ->unique(fn (TestItemCategory $category): string => $category->value)
+            ->values()
+            ->all();
     }
 
     public function patient(): BelongsTo

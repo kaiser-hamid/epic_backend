@@ -18,7 +18,6 @@ use Modules\Shared\Billing\Data\PricedLine;
 use Modules\Shared\Billing\Enums\BillingStatus;
 use Modules\Shared\Billing\Exceptions\DiscountPolicyNotAllowed;
 use Modules\Shared\Billing\Exceptions\IdempotencyKeyReused;
-use Modules\Shared\Billing\Exceptions\InvoiceCategoryMixed;
 use Modules\Shared\Billing\Exceptions\InvoiceNoTaken;
 use Modules\Shared\Billing\Exceptions\PaidAmountExceedsPayable;
 use Modules\Shared\Billing\Models\Billing;
@@ -35,12 +34,12 @@ use Spatie\LaravelData\Data;
 /**
  * Bills tests to a patient in the session's branch, registering the patient first when they are new.
  *
- * - Every item must share one category; a Blood Bank bill never carries other items, and the reverse.
- * - Each line snapshots the catalog rate and the discount it got, and the bill snapshots its discount policy,
- *   so later catalog or policy changes never alter an issued bill.
- * - When the category belongs to a module (Blood Bank), that module's handler validates its own fields first and
- *   opens its record from the saved bill in the same transaction: the bill and the record exist together or not
- *   at all.
+ * - A bill may mix items of any category. Each line snapshots the catalog rate, the item's category and the
+ *   discount it got, and the bill snapshots its discount policy, so later catalog or policy changes never alter an
+ *   issued bill.
+ * - For each category on the bill that belongs to a module (Blood Bank), that module's handler validates its own
+ *   fields first and opens its record from the saved bill, given only that category's lines, in the same
+ *   transaction: the bill and the record exist together or not at all.
  * - Resubmitting the same `idempotency_key` returns the bill already saved, so a double click or a retry never
  *   creates a second bill (or a second case).
  */
@@ -62,7 +61,6 @@ final class CreateInvoice
     /**
      * @throws BranchInactive
      * @throws IdempotencyKeyReused
-     * @throws InvoiceCategoryMixed
      * @throws DiscountPolicyNotAllowed
      * @throws InvoiceNoTaken
      * @throws PaidAmountExceedsPayable
@@ -84,11 +82,11 @@ final class CreateInvoice
             throw new PaidAmountExceedsPayable;
         }
 
-        $handler = $this->handlerFor($priced->category);
-        $details = $this->categoryDetails($handler, $data->categoryDetails);
+        $handlers = $this->handlersFor($priced->categories());
+        $details = $this->categoryDetails($handlers, $data->categoryDetails);
 
         try {
-            $billing = DB::transaction(fn (): Billing => $this->save($actor, $data, $branch, $priced, $handler, $details));
+            $billing = DB::transaction(fn (): Billing => $this->save($actor, $data, $branch, $priced, $handlers, $details));
         } catch (UniqueConstraintViolationException $exception) {
             return $this->savedUnderKey($actor, $data->idempotencyKey) ?? throw $exception;
         }
@@ -97,6 +95,9 @@ final class CreateInvoice
     }
 
     /**
+     * @param  list<InvoiceCategoryHandler>  $handlers
+     * @param  array<string, Data>  $details  category value => what its handler validated
+     *
      * @throws InvoiceNoTaken
      */
     private function save(
@@ -104,8 +105,8 @@ final class CreateInvoice
         CreateInvoiceData $data,
         Branch $branch,
         PricedInvoice $priced,
-        ?InvoiceCategoryHandler $handler,
-        ?Data $details,
+        array $handlers,
+        array $details,
     ): Billing {
         if ($data->invoiceNo !== null && Billing::withTrashed()->where('invoice_no', $data->invoiceNo)->exists()) {
             throw new InvoiceNoTaken;
@@ -122,7 +123,6 @@ final class CreateInvoice
             'idempotency_key' => $data->idempotencyKey,
             'patient_master_id' => $patient->id,
             'branch_id' => $branch->id,
-            'category' => $priced->category,
             'patient_type_id' => $priced->patientType->id,
             'subtotal_amount' => $totals->subtotalAmount,
             'discount_amount' => $totals->discountAmount,
@@ -137,7 +137,7 @@ final class CreateInvoice
 
         $lines = array_map(fn (PricedLine $line): array => [
             'test_item_id' => $line->testItemId,
-            'category' => $priced->category,
+            'category' => $priced->categoryOf($line->testItemId),
             'quantity' => $line->quantity,
             'rate' => $line->rate,
             'amount' => $line->amount,
@@ -160,14 +160,20 @@ final class CreateInvoice
         }
 
         $this->auditLogger->record(AuditAction::InvoiceCreated, $billing, newValues: [
-            ...$billing->only(['invoice_no', 'patient_master_id', 'category', 'patient_type_id', 'subtotal_amount', 'discount_amount', 'rounding_amount', 'amount', 'paid_amount', 'delivery_at']),
+            ...$billing->only(['invoice_no', 'patient_master_id', 'patient_type_id', 'subtotal_amount', 'discount_amount', 'rounding_amount', 'amount', 'paid_amount', 'delivery_at']),
             'discount_policy' => $priced->discountPolicy?->only(['id', 'name', 'rate_bp']),
             'items' => $lines,
             'referral' => $data->referral->toArray(),
         ]);
 
-        if ($handler !== null && $details !== null) {
-            $handler->issued($actor, $this->issued($billing, $patient, $totals->lines), $details);
+        foreach ($handlers as $handler) {
+            $category = $handler->category();
+            $categoryLines = array_values(array_filter(
+                $totals->lines,
+                fn (PricedLine $line): bool => $priced->categoryOf($line->testItemId) === $category,
+            ));
+
+            $handler->issued($actor, $this->issued($billing, $patient, $categoryLines), $details[$category->value]);
         }
 
         return $billing;
@@ -189,39 +195,57 @@ final class CreateInvoice
         return $billing === null ? null : $this->showInvoice->get($billing);
     }
 
-    private function handlerFor(TestItemCategory $category): ?InvoiceCategoryHandler
+    /**
+     * The handlers of the module-owned categories on the bill.
+     *
+     * @param  list<TestItemCategory>  $categories
+     * @return list<InvoiceCategoryHandler>
+     */
+    private function handlersFor(array $categories): array
     {
+        $handlers = [];
+
         foreach ($this->categoryHandlers as $handler) {
-            if ($handler->category() === $category) {
-                return $handler;
+            if (in_array($handler->category(), $categories, true)) {
+                $handlers[] = $handler;
             }
         }
 
-        return null;
+        return $handlers;
     }
 
     /**
+     * `category_details` holds the fields of the modules whose items are on the bill; each handler validates it.
+     *
+     * @param  list<InvoiceCategoryHandler>  $handlers
      * @param  array<string, mixed>|null  $details
+     * @return array<string, Data> category value => validated details
      *
      * @throws ValidationException
      */
-    private function categoryDetails(?InvoiceCategoryHandler $handler, ?array $details): ?Data
+    private function categoryDetails(array $handlers, ?array $details): array
     {
-        if ($handler === null) {
+        if ($handlers === []) {
             if ($details !== null) {
                 throw ValidationException::withMessages(['category_details' => 'This bill takes no category details.']);
             }
 
-            return null;
+            return [];
         }
 
-        try {
-            return $handler->validateDetails($details);
-        } catch (ValidationException $exception) {
-            throw ValidationException::withMessages(collect($exception->errors())
-                ->mapWithKeys(fn (array $messages, string $key): array => ["category_details.{$key}" => $messages])
-                ->all());
+        $validated = [];
+
+        foreach ($handlers as $handler) {
+            try {
+                $validated[$handler->category()->value] = $handler->validateDetails($details);
+            } catch (ValidationException $exception) {
+                throw ValidationException::withMessages(collect($exception->errors())
+                    ->mapWithKeys(fn (array $messages, string $key): array => ["category_details.{$key}" => $messages])
+                    ->all());
+            }
         }
+
+        return $validated;
     }
 
     /**

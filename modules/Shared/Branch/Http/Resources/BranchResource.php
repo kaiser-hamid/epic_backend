@@ -25,6 +25,7 @@ final class BranchResource extends JsonResource
             'name' => $this->name,
             'address' => $this->whenHas('address'),
             'phone' => $this->whenHas('phone'),
+            'lab_room_no' => $this->whenHas('lab_room_no'),
             'is_active' => $this->whenHas('is_active'),
             'modules' => $this->whenLoaded('modules', fn (): array => $this->modules->pluck('module')->all()),
         ];

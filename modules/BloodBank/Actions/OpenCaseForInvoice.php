@@ -15,10 +15,11 @@ use Modules\Shared\Billing\Data\IssuedInvoice;
 use Modules\Shared\Billing\Data\IssuedInvoiceLine;
 
 /**
- * Opens the Blood Bank case of a just-saved Blood Bank bill, inside the bill's transaction: the patient and branch
- * of the bill, its "Care of", and one requested component per billed line whose item is a component type's item
- * (quantity as billed). Lines of other Blood Bank items (cross matching, bag charge…) request nothing. One bill
- * opens at most one case (`bb_cases.billing_id` is unique); asking again returns the existing case.
+ * Opens the Blood Bank case of a just-saved bill with Blood Bank items, inside the bill's transaction: the patient
+ * and branch of the bill, its "Care of", and one requested component per billed line whose item is a component
+ * type's item (quantity as billed). `$invoice->lines` holds only the bill's Blood Bank lines; those of other Blood
+ * Bank items (cross matching, bed charge…) request nothing. One bill opens at most one case
+ * (`bb_cases.billing_id` is unique); asking again returns the existing case.
  */
 final class OpenCaseForInvoice
 {

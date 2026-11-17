@@ -27,7 +27,7 @@ final class PatientCaseFactory extends Factory
             'case_no' => fake()->unique()->numerify('BB-CASE-######'),
             'patient_master_id' => PatientMasterFactory::new(),
             'branch_id' => BranchFactory::new(),
-            'billing_id' => fn (array $attributes): int => BillingFactory::new()->bloodBank()->create([
+            'billing_id' => fn (array $attributes): int => BillingFactory::new()->create([
                 'patient_master_id' => $attributes['patient_master_id'],
                 'branch_id' => $attributes['branch_id'],
             ])->id,

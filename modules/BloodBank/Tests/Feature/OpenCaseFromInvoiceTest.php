@@ -46,7 +46,7 @@ it('opens one Blood Bank case from a Blood Bank bill, requesting the billed comp
             ['test_item_id' => $this->crossMatching->id],
         ],
         'category_details' => ['care_type' => 'daycare'],
-    ])->assertCreated()->assertJsonPath('data.category', 'blood_bank');
+    ])->assertCreated()->assertJsonPath('data.categories', ['blood_bank']);
 
     $billing = Billing::sole();
     $case = PatientCase::with('components')->sole();
@@ -87,9 +87,22 @@ it('opens no second case when the same bill form is submitted again', function (
 it('opens no case for a general bill, such as the additional donor charge', function () {
     ($this->bill)(['items' => [['test_item_id' => TestItem::where('code', 'BB-ADDL-DONOR')->value('id')]]])
         ->assertCreated()
-        ->assertJsonPath('data.category', 'general');
+        ->assertJsonPath('data.categories', ['general']);
 
     expect(PatientCase::count())->toBe(0);
+});
+
+it('opens the case of a bill mixing Blood Bank and general items from the Blood Bank lines only', function () {
+    ($this->bill)([
+        'items' => [
+            ['test_item_id' => TestItem::factory()->create()->id],
+            ['test_item_id' => $this->pcv->test_item_id],
+        ],
+        'category_details' => ['care_type' => 'out'],
+    ])->assertCreated();
+
+    expect(PatientCase::with('components')->sole()->components->map->only(['component_type_id', 'quantity'])->all())
+        ->toBe([['component_type_id' => $this->pcv->id, 'quantity' => 1]]);
 });
 
 it('refuses a Blood Bank bill in a branch without a blood bank and saves nothing', function () {
@@ -110,7 +123,7 @@ it('refuses a Blood Bank bill in a branch without a blood bank and saves nothing
         ->assertUnprocessable()
         ->assertJson(['code' => 'MODULE_NOT_ENABLED_FOR_BRANCH']);
 
-    expect(Billing::where('category', 'blood_bank')->exists())->toBeFalse()
+    expect(Billing::count())->toBe(0)
         ->and(PatientCase::count())->toBe(0);
 });
 
@@ -123,6 +136,6 @@ it('leaves no bill behind when the case cannot be opened', function () {
         'category_details' => ['care_type' => 'out'],
     ])->assertServerError();
 
-    expect(Billing::where('category', 'blood_bank')->whereNotNull('idempotency_key')->exists())->toBeFalse()
+    expect(Billing::whereNotNull('idempotency_key')->exists())->toBeFalse()
         ->and(PatientCase::count())->toBe(1);
 });

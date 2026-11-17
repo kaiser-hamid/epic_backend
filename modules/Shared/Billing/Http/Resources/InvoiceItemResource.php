@@ -7,8 +7,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Shared\Billing\Models\BillingItem;
 
 /**
- * A bill line. Code, name and department come from the catalog; rate, gross `amount`, the discount it got and
- * `net_amount` are the billed snapshot.
+ * A bill line. Code, name and department come from the catalog; `category`, rate, gross `amount`, the discount it
+ * got and `net_amount` are the billed snapshot.
  *
  * @mixin BillingItem
  */
@@ -22,6 +22,7 @@ final class InvoiceItemResource extends JsonResource
         return [
             'id' => $this->id,
             'test_item_id' => $this->test_item_id,
+            'category' => $this->category->value,
             'code' => $this->whenLoaded('testItem', fn () => $this->testItem->code),
             'name' => $this->whenLoaded('testItem', fn () => $this->testItem->name),
             'department_name' => $this->whenLoaded('testItem', fn () => $this->testItem->department_name),

@@ -194,17 +194,20 @@ it('returns 403 FORBIDDEN without the billing permission', function () {
         ->assertJson(['code' => 'FORBIDDEN']);
 });
 
-it('refuses a bill mixing Blood Bank and other items and saves nothing', function () {
+it('saves a bill mixing general and Blood Bank items, each line keeping its own category', function () {
+    enableModulesIn($this->branch, 'blood-bank');
+    $general = TestItem::factory()->create();
+    $bloodBank = TestItem::factory()->bloodBank()->create();
+
     createInvoice($this, [
         'patient_id' => PatientMaster::factory()->create()->id,
-        'items' => [
-            ['test_item_id' => TestItem::factory()->create()->id],
-            ['test_item_id' => TestItem::factory()->bloodBank()->create()->id],
-        ],
+        'items' => [['test_item_id' => $general->id], ['test_item_id' => $bloodBank->id]],
         'referral' => ['is_self_referral' => true],
-    ])->assertUnprocessable()->assertJson(['code' => 'INVOICE_CATEGORY_MIXED']);
-
-    expect(Billing::count())->toBe(0);
+        'category_details' => ['care_type' => 'out'],
+    ])->assertCreated()
+        ->assertJsonPath('data.categories', ['general', 'blood_bank'])
+        ->assertJsonPath('data.items.0.category', 'general')
+        ->assertJsonPath('data.items.1.category', 'blood_bank');
 });
 
 it('returns the bill already saved when the same form is submitted again, and refuses another user\'s key', function () {

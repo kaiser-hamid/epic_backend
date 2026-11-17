@@ -6,16 +6,14 @@ use Modules\Shared\Billing\Data\BillLineInput;
 use Modules\Shared\Billing\Data\InvoiceItemData;
 use Modules\Shared\Billing\Data\PricedInvoice;
 use Modules\Shared\Billing\Exceptions\DiscountPolicyNotAllowed;
-use Modules\Shared\Billing\Exceptions\InvoiceCategoryMixed;
 use Modules\Shared\Billing\Models\DiscountPolicy;
 use Modules\Shared\Billing\Models\PatientType;
-use Modules\Shared\TestCatalog\Enums\TestItemCategory;
 use Modules\Shared\TestCatalog\Models\TestItem;
 
 /**
  * Prices a bill from the catalog, for both the live preview and the saved bill, so they always agree: snapshots
- * each item's rate and discount override, checks the items share one category and the policy belongs to the
- * patient type, then runs the calculator. Items are expected to exist and be active (validated on the request).
+ * each item's rate, discount override and category, checks the policy belongs to the patient type, then runs the
+ * calculator. Items may be of any category. Items are expected to exist and be active (validated on the request).
  */
 final class InvoicePricer
 {
@@ -24,13 +22,11 @@ final class InvoicePricer
     /**
      * @param  list<InvoiceItemData>  $items
      *
-     * @throws InvoiceCategoryMixed
      * @throws DiscountPolicyNotAllowed
      */
     public function price(array $items, int $patientTypeId, ?int $discountPolicyId): PricedInvoice
     {
         $testItems = TestItem::query()->findMany(array_column($items, 'testItemId'))->keyBy('id');
-        $category = $this->category($testItems->pluck('category')->unique()->values()->all());
 
         $patientType = PatientType::query()->findOrFail($patientTypeId);
         $discountPolicy = $discountPolicyId === null ? null : $this->discountPolicy($patientType, $discountPolicyId);
@@ -42,26 +38,18 @@ final class InvoicePricer
             itemDiscountRateBp: $testItems[$item->testItemId]->discount_rate_bp,
         ), $items);
 
+        $itemCategories = [];
+
+        foreach ($items as $item) {
+            $itemCategories[$item->testItemId] = $testItems[$item->testItemId]->category;
+        }
+
         return new PricedInvoice(
-            category: $category,
+            itemCategories: $itemCategories,
             patientType: $patientType,
             discountPolicy: $discountPolicy,
             totals: $this->calculator->calculate($lines, $discountPolicy?->rate_bp),
         );
-    }
-
-    /**
-     * @param  list<TestItemCategory>  $categories
-     *
-     * @throws InvoiceCategoryMixed
-     */
-    private function category(array $categories): TestItemCategory
-    {
-        if (count($categories) !== 1) {
-            throw new InvoiceCategoryMixed;
-        }
-
-        return $categories[0];
     }
 
     /**

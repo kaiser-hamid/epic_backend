@@ -1,8 +1,9 @@
 {{--
     Counter bill, laid out like the paper bill. Printed on the pre-printed pad (A5, 148 × 210 mm): the top and bottom
     27 mm hold the pad's own header and QR footer, so nothing is drawn there. One print is the Customer Copy, then
-    one Non Lab Copy per department. Rendered by mPDF (InvoicePrintBuilder); keep to tables and simple CSS, which
-    is what mPDF lays out reliably. All values arrive formatted.
+    the Lab Copy (all lab items) and one Non-Lab Copy per non-lab department, each with its department and room.
+    Rendered by mPDF (InvoicePrintBuilder); keep to tables and simple CSS, which is what mPDF lays out reliably.
+    All values arrive formatted.
 --}}
 <!doctype html>
 <html>
@@ -64,14 +65,14 @@
 </head>
 <body>
 @php
-    $copies = [['title' => 'Customer Copy', 'department' => null, 'items' => $customerCopy['items'], 'withPrice' => true]];
+    $pages = [['title' => 'Customer Copy', 'department' => null, 'items' => $customerCopy['items'], 'withPrice' => true]];
 
-    foreach ($departmentCopies as $departmentCopy) {
-        $copies[] = ['title' => 'Non Lab Copy', 'department' => $departmentCopy['department'], 'items' => $departmentCopy['items'], 'withPrice' => false];
+    foreach ($copies as $departmentCopy) {
+        $pages[] = [...$departmentCopy, 'withPrice' => false];
     }
 @endphp
 
-@foreach ($copies as $copy)
+@foreach ($pages as $copy)
     @if (! $loop->first)
         <pagebreak />
     @endif

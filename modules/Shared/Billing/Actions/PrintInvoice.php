@@ -13,7 +13,7 @@ use Modules\Shared\Printing\Data\PdfDocument;
 use Modules\Shared\Printing\Exceptions\ReprintReasonRequired;
 
 /**
- * Prints a bill (Customer Copy plus a Non Lab Copy per department) and logs the print. The first print is the
+ * Prints a bill (Customer Copy, a Lab Copy, and a Non-Lab Copy per non-lab department) and logs the print. The first print is the
  * "Original Copy"; every later one is a "Duplicate Copy" and needs a reason. The PDF is rendered inside the
  * transaction, so a failed render logs nothing.
  */

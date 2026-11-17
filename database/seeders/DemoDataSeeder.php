@@ -10,6 +10,7 @@ use Modules\BloodBank\Database\Seeders\StorageLocationSeeder;
 use Modules\Shared\Auth\Database\Seeders\UserSeeder;
 use Modules\Shared\Doctor\Database\Seeders\DoctorSeeder;
 use Modules\Shared\Patient\Database\Seeders\PatientSeeder;
+use Modules\Shared\TestCatalog\Database\Seeders\BloodBankTestItemSeeder;
 use Modules\Shared\TestCatalog\Database\Seeders\DepartmentSeeder;
 use Modules\Shared\TestCatalog\Database\Seeders\TestItemSeeder;
 
@@ -27,6 +28,7 @@ class DemoDataSeeder extends Seeder
             UserSeeder::class,
             DepartmentSeeder::class,
             TestItemSeeder::class,
+            BloodBankTestItemSeeder::class,
             DoctorSeeder::class,
             PatientSeeder::class,
             ComponentTypeSeeder::class,

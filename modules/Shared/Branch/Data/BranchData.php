@@ -14,7 +14,8 @@ use Spatie\LaravelData\Support\Validation\References\RouteParameterReference;
 
 /**
  * `modules` lists the optional modules (e.g. "blood-bank") the branch runs; it replaces the current list.
- * Leave it out to keep the list as it is.
+ * Leave it out to keep the list as it is. `lab_room_no` is the Pathology sample collection room printed on the
+ * bill's Lab Copy.
  */
 #[MapName(SnakeCaseMapper::class)]
 final class BranchData extends Data
@@ -32,6 +33,8 @@ final class BranchData extends Data
         public ?string $address = null,
         #[Max(20)]
         public ?string $phone = null,
+        #[Max(30)]
+        public ?string $labRoomNo = null,
         public Optional|array $modules = new Optional,
     ) {}
 

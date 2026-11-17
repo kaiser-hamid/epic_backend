@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Shared\TestCatalog\Database\Factories\DepartmentFactory;
+use Modules\Shared\TestCatalog\Enums\DepartmentType;
 
 #[Table('sh_departments')]
-#[Fillable(['code', 'name', 'room_no', 'is_active'])]
+#[Fillable(['code', 'name', 'type', 'is_active'])]
 #[UseFactory(DepartmentFactory::class)]
 final class Department extends Model
 {
@@ -25,6 +26,7 @@ final class Department extends Model
     protected function casts(): array
     {
         return [
+            'type' => DepartmentType::class,
             'is_active' => 'boolean',
         ];
     }
@@ -32,5 +34,13 @@ final class Department extends Model
     public function testItems(): HasMany
     {
         return $this->hasMany(TestItem::class, 'department_id');
+    }
+
+    /**
+     * Its room in each branch (non-lab departments).
+     */
+    public function rooms(): HasMany
+    {
+        return $this->hasMany(DepartmentRoom::class, 'department_id');
     }
 }
