@@ -15,8 +15,10 @@ use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Sample;
 use Modules\BloodBank\Models\Unit;
 use Modules\BloodBank\Services\BloodBankInvoiceHandler;
+use Modules\BloodBank\Services\BloodBankTransactionalData;
 use Modules\Shared\Billing\Contracts\InvoiceCategoryHandler;
 use Modules\Shared\Rbac\Services\PermissionRegistry;
+use Modules\Shared\Support\Contracts\TransactionalData;
 
 final class BloodBankServiceProvider extends ServiceProvider
 {
@@ -26,6 +28,7 @@ final class BloodBankServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->tag([BloodBankInvoiceHandler::class], InvoiceCategoryHandler::TAG);
+        $this->app->tag([BloodBankTransactionalData::class], TransactionalData::TAG);
     }
 
     public function boot(PermissionRegistry $permissions): void

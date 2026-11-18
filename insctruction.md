@@ -1,95 +1,34 @@
-# Feature: User & Permission Management Module
+Phase: 1
 
-## Objective
+In blood bank, the flow could be broken/changed  based on the service customer takes (in invoice).
+The exception cases are as follows:
+1. "Autologous PRP": Only sample label will be printed. 5 copies of barcode label in this case and marked the case as served.
+2. Therapeutic Phlebotomy: It's just a process of draw and drop the blood. No sample will be taken, no blood bag. Technologist just Mark the case done.
+3. Platelet Apheresis is like the whole blood.
 
-Implement a standalone **User Management and Permission Management module** under the **Config** menu of the application.
 
-The module should provide a simple interface for managing application users, defining permission groups, assigning permissions to groups, and controlling individual user access.
 
-Follow the existing application's architecture, coding conventions, UI patterns, and technology stack. Do not introduce unnecessary abstractions or dependencies.
+Phase: 2
 
----
+Items in small tables like PCV, WB, FFP, FP platelet, CRYO, PC, Platelet Apheresis,  Autologous PRP,  etc are considered Blood bank case.
 
-## 1. User Management
+You can see the expiry days in seperate table for the component we store.
 
-Create a user management interface under:
+Here are some rules regarding the blood components.
+If patient pays for,
 
-**Config → User Management**
+1. WB: He will take the whole blood. Nothing left. In collection blood step, only one Label will be printed containing "Whole Blood".
 
-### Features
+2. PCV: 2 labels will be printed on blood collection (PCV & FFP). Blood drawing and preparation together. (No wh label anymore now). PCV label will be printed as patient blood, and FFP label will be printed as storage blood. (we will decide late how we manag storage location in this case)
 
-- List all application users.
-- Create a new user.
-- Edit existing user information.
-- Enable or disable a user account.
-- Reset a user's password according to current flow.
-- Manage the user's permission group assignments.
-- Manage individual permission overrides.
+3. FFP: same as PCV, in this case, patient label for FFP, storage label for PCV.
 
-### User Fields
+4. PLATELET: We will get PCV, FFP, PC. Patient will take PC, the rest will be stored.
 
-Follow the existing user model and authentication structure. Reuse existing fields wherever possible.
+5. CRYO: We will get pcv, ffp cryo. In this case, only cryo label will be printed. Nothing goes to storage.
 
-At minimum, support:
-- Name
-- Username (based on the existing authentication implementation)
-- Password (for new users)
-- Account status (Active / Disabled)
-- Assigned permission groups
+6. Autologous (PRP): Only 5 copies of sample label will be printed. No bag label needed. The case closes in this sample collection step. Patient just take 5 tubes of blood like sample.
 
-### Password Management
+7.  Therapeutic Phlebotomy: No sample, No blood bag. It's just a process of draw blood and destoy it. So, we just need a case closing option somewhere. (need you suggestions)
 
-- Allow administrators to reset a user's password.
-- Passwords must be securely hashed using the application's existing authentication mechanism.
-- Never expose existing passwords.
-- Follow the existing password validation rules.
 
-### Account Status
-
-- Disabled users must not be able to authenticate.
-- Enforce account status on the backend, not just in the frontend.
-
----
-
-### Suggested API Responsibilities
-
-**User Management**
-- List users
-- Create user
-- Get user details
-- Update user
-- Enable / Disable user
-- Reset password
-
-### Backend Requirements
-
-- Implement proper request validation.
-- Use database transactions where multiple related records are modified.
-- Ensure disabled users cannot authenticate.
-- Avoid N+1 database queries.
-- Follow existing pagination and filtering conventions.
-- Return consistent API response structures.
-
----
-
-## 6. Frontend Implementation
-
-Build the complete frontend for user management interfaces.
-
-Follow the existing React architecture, component structure, design system, form conventions, and API integration patterns.
-
-### User Management Screen
-
-Include:
-- User listing with search and pagination.
-- Create user form.
-- Edit user form.
-- Active / Disabled status indicator.
-- Enable / Disable action.
-- Password reset action.
-
----
-
-Do not modify unrelated modules or introduce breaking changes.
-
-Create a migration to start ids from 1000 instead of 1.

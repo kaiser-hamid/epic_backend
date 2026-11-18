@@ -51,6 +51,10 @@ use Modules\Shared\Rbac\Enums\SharedRoleTemplate;
 use Modules\Shared\Rbac\Models\Role;
 use Modules\Shared\Rbac\Services\BranchAccessChecker;
 use Modules\Shared\Rbac\Services\PermissionRegistry;
+use Modules\Shared\Support\Actions\ResetTransactionalData;
+use Modules\Shared\Support\Console\ResetTransactionalDataCommand;
+use Modules\Shared\Support\Contracts\TransactionalData;
+use Modules\Shared\Support\Services\SharedTransactionalData;
 
 final class SharedServiceProvider extends ServiceProvider
 {
@@ -87,6 +91,11 @@ final class SharedServiceProvider extends ServiceProvider
             ->giveTagged(InvoiceCategoryHandler::TAG);
 
         $this->app->scoped(UserPolicy::class);
+
+        $this->app->tag([SharedTransactionalData::class], TransactionalData::TAG);
+        $this->app->when(ResetTransactionalData::class)
+            ->needs('$sources')
+            ->giveTagged(TransactionalData::TAG);
     }
 
     public function boot(PermissionRegistry $permissions, Router $router): void
@@ -122,7 +131,7 @@ final class SharedServiceProvider extends ServiceProvider
         $this->bootPagination();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([SyncPermissionsCommand::class, SuperAdminCommand::class]);
+            $this->commands([SyncPermissionsCommand::class, SuperAdminCommand::class, ResetTransactionalDataCommand::class]);
         }
     }
 
