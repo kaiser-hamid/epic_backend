@@ -33,6 +33,7 @@ use Modules\BloodBank\Models\TestDefinition;
 use Modules\BloodBank\Models\TestResult;
 use Modules\BloodBank\Models\Unit;
 use Modules\BloodBank\Services\BloodIssueGate;
+use Modules\BloodBank\Services\CaseCloser;
 use Modules\BloodBank\Services\CompatibilityReportBuilder;
 use Modules\BloodBank\Services\UnitMovementRecorder;
 use Modules\Shared\Audit\Contracts\AuditLogger;
@@ -59,6 +60,7 @@ final class IssueBlood
         private readonly AuditLogger $auditLogger,
         private readonly PrintLogger $printLogger,
         private readonly CompatibilityReportBuilder $reports,
+        private readonly CaseCloser $caseCloser,
     ) {}
 
     /**
@@ -345,11 +347,6 @@ final class IssueBlood
             return;
         }
 
-        $case->update(['status' => CaseStatus::Closed]);
-
-        $this->auditLogger->record(BloodBankAuditAction::CaseClosed, $case, oldValues: ['status' => CaseStatus::Open->value], newValues: [
-            'status' => CaseStatus::Closed->value,
-            'case_no' => $case->case_no,
-        ]);
+        $this->caseCloser->close($case, $actor, 'blood_issue');
     }
 }

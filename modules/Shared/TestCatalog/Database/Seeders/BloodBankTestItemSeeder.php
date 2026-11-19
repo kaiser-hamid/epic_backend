@@ -11,7 +11,8 @@ use RuntimeException;
 /**
  * The Blood Bank price list (`docs/blood-bank-items.png`), every item a `blood_bank` item so they can share one case
  * bill. Charges that differ by bed type are two items: the price-list code plus `R` (Regular) or `C` (Cabin), e.g.
- * `BCIP01R` and `BCIP01C`. The list repeats `BCIP01` for the "without Infusion Pump" charge, so that pair is `BCIP02`.
+ * `BCIP01R` and `BCIP01C`. The list repeats `BCIP01` for the "without Infusion Pump" charge, so that pair is `BCIP02`;
+ * it also repeats `TP01`, so the Thalassemia Package is `TH01` (Therapeutic Phlebotomy keeps `TP01`).
  * Needs `DepartmentSeeder`. Matched on `code`, so re-running adds missing items and leaves an edited rate alone.
  */
 final class BloodBankTestItemSeeder extends Seeder
@@ -34,7 +35,7 @@ final class BloodBankTestItemSeeder extends Seeder
         'TP01' => ['Therapeutic Phlebotomy', 1000],
         'CP01' => ['Cryo Precipitate', 2600],
         'CPP01' => ['Cryo Poor Plasma', 2600],
-        'TP02' => ['Thalassemia Package', 2500],
+        'TH01' => ['Thalassemia Package', 2500],
         'BCBT01R' => ['Bed Charge for Blood Transfusion - Regular', 1500],
         'BCBT01C' => ['Bed Charge for Blood Transfusion - Cabin', 2000],
         'BCIP01R' => ['Bed Charge for Medication with Infusion Pump - Regular', 1800],

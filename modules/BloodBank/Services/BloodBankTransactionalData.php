@@ -6,14 +6,15 @@ use Illuminate\Support\Facades\DB;
 use Modules\Shared\Support\Contracts\TransactionalData;
 
 /**
- * Blood Bank's user-entered tables. Kept as configuration: test definitions, component types, storage
- * locations and the consumables list itself (only its stock batches and movements are cleared).
+ * Blood Bank's user-entered tables. Kept as configuration: test definitions, component types, billable items,
+ * storage locations and the consumables list itself (only its stock batches and movements are cleared).
  */
 final class BloodBankTransactionalData implements TransactionalData
 {
     public function tables(): array
     {
         return [
+            'bb_phlebotomies',
             'bb_unit_movements',
             'bb_crossmatches',
             'bb_case_components',

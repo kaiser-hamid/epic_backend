@@ -12,7 +12,7 @@ use Modules\Shared\Printing\Models\PrintLog;
 
 final class EloquentPrintLogger implements PrintLogger
 {
-    public function record(BackedEnum $documentType, Model $printable, User $printedBy, ?string $reprintReason = null): PrintLog
+    public function record(BackedEnum $documentType, Model $printable, User $printedBy, ?string $reprintReason = null, int $copies = 1): PrintLog
     {
         $isReprint = $this->printsOf($documentType, $printable)->exists();
 
@@ -26,6 +26,7 @@ final class EloquentPrintLogger implements PrintLogger
             'printable_id' => $printable->getKey(),
             'printed_by' => $printedBy->getKey(),
             'printed_at' => now(),
+            'copies' => max(1, $copies),
             'is_reprint' => $isReprint,
             'reprint_reason' => $isReprint ? $reprintReason : null,
         ]);

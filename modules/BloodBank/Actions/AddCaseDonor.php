@@ -9,6 +9,7 @@ use Modules\BloodBank\Enums\BloodBankAuditAction;
 use Modules\BloodBank\Enums\CaseDonorStatus;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
+use Modules\BloodBank\Exceptions\CaseTakesNoDonors;
 use Modules\BloodBank\Exceptions\DonorAlreadyInCase;
 use Modules\BloodBank\Exceptions\InvoiceLinkedToOtherCase;
 use Modules\BloodBank\Exceptions\InvoiceNotActive;
@@ -40,6 +41,7 @@ final class AddCaseDonor
 
     /**
      * @throws CaseNotOpen
+     * @throws CaseTakesNoDonors
      * @throws DonorAlreadyInCase
      * @throws InvoiceNotFound
      * @throws InvoiceNotInBranch
@@ -54,6 +56,10 @@ final class AddCaseDonor
 
             if ($case->status !== CaseStatus::Open) {
                 throw new CaseNotOpen;
+            }
+
+            if ($case->service->isProcedure()) {
+                throw new CaseTakesNoDonors;
             }
 
             if ($data->donorId !== null && $case->caseDonors()->where('donor_id', $data->donorId)->exists()) {

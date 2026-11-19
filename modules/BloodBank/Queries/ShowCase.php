@@ -3,16 +3,19 @@
 namespace Modules\BloodBank\Queries;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\BloodBank\Data\CaseClosingView;
 use Modules\BloodBank\Data\CaseLookupData;
 use Modules\BloodBank\Data\CaseView;
 use Modules\BloodBank\Exceptions\CaseNotFound;
 use Modules\BloodBank\Models\PatientCase;
+use Modules\BloodBank\Services\CaseClosingGate;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
 use Modules\Shared\Patient\Contracts\PatientDirectory;
 
 /**
- * One case with its components, donors in sequence order (each with its own bill, if any), patient and invoice.
+ * One case with its components, donors in sequence order (each with its own bill, if any), patient and invoice,
+ * who closed it, and whether "Close case" is offered.
  */
 final class ShowCase
 {
@@ -20,6 +23,7 @@ final class ShowCase
         private readonly PatientDirectory $patients,
         private readonly InvoiceDirectory $invoices,
         private readonly CurrentBranch $currentBranch,
+        private readonly CaseClosingGate $closingGate,
     ) {}
 
     /**
@@ -44,6 +48,7 @@ final class ShowCase
             'components.componentType',
             'caseDonors' => fn (HasMany $query) => $query->orderBy('sequence_no'),
             'caseDonors.donor',
+            'closer',
         ]);
 
         $billingIds = $case->caseDonors->pluck('billing_id')->push($case->billing_id)->filter()->unique()->values()->all();
@@ -54,6 +59,10 @@ final class ShowCase
             $this->patients->summaries([$case->patient_master_id])[$case->patient_master_id] ?? null,
             $case->billing_id === null ? null : ($invoices[$case->billing_id] ?? null),
             $invoices,
+            new CaseClosingView(
+                $this->closingGate->refusal($case) === null,
+                $this->closingGate->needsReason($case),
+            ),
         );
     }
 }

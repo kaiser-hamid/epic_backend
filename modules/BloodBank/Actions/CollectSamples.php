@@ -10,6 +10,7 @@ use Modules\BloodBank\Data\SampleCollectionView;
 use Modules\BloodBank\Data\SampleSubjectData;
 use Modules\BloodBank\Enums\BloodBankAuditAction;
 use Modules\BloodBank\Enums\CaseDonorStatus;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Enums\PrintDocumentType;
 use Modules\BloodBank\Enums\SampleStatus;
@@ -18,10 +19,12 @@ use Modules\BloodBank\Exceptions\CaseDonorNotInCase;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
 use Modules\BloodBank\Exceptions\DonorDeferred;
 use Modules\BloodBank\Exceptions\DonorNotFit;
+use Modules\BloodBank\Exceptions\PatientSampleNotNeeded;
 use Modules\BloodBank\Exceptions\SampleAlreadyCollected;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Sample;
 use Modules\BloodBank\Queries\ShowSampleCollection;
+use Modules\BloodBank\Services\CaseCloser;
 use Modules\BloodBank\Services\CaseSampleSubjects;
 use Modules\BloodBank\Services\SampleNumber;
 use Modules\Shared\Audit\Contracts\AuditLogger;
@@ -33,6 +36,9 @@ use Modules\Shared\Printing\Contracts\PrintLogger;
  * with its own sample no. All or nothing: one row that cannot be collected rejects the whole request. The case
  * row is locked so a double click cannot draw two samples for the same subject. Each new sample's label counts as
  * printed (first print, logged here) and the response carries its printer command for the print service.
+ *
+ * Autologous PRP: the patient's sample is the whole service. Its label prints 5 copies (one per tube) and
+ * collecting it closes the case (supply time = collection time). A Therapeutic Phlebotomy takes no sample.
  */
 final class CollectSamples
 {
@@ -42,10 +48,12 @@ final class CollectSamples
         private readonly AuditLogger $auditLogger,
         private readonly ShowSampleCollection $showSampleCollection,
         private readonly PrintLogger $printLogger,
+        private readonly CaseCloser $caseCloser,
     ) {}
 
     /**
      * @throws CaseNotOpen
+     * @throws PatientSampleNotNeeded
      * @throws CaseDonorNotInCase
      * @throws DonorDeferred
      * @throws DonorNotFit
@@ -66,8 +74,13 @@ final class CollectSamples
 
             $subjects = $this->sampleSubjects->of($case);
             $collectedAt = $data->collectedAt ?? now();
+            $patientSampled = false;
 
             foreach ($data->subjects as $requested) {
+                if ($requested->subjectType === SampleSubject::Patient && ! $case->service->takesPatientSample()) {
+                    throw new PatientSampleNotNeeded;
+                }
+
                 $this->ensureCollectable($this->find($subjects, $requested));
 
                 $sample = Sample::create([
@@ -85,15 +98,26 @@ final class CollectSamples
                     'case_no' => $case->case_no,
                 ]);
 
-                $this->printLogger->record(PrintDocumentType::SampleLabel, $sample, $actor);
+                $this->printLogger->record(PrintDocumentType::SampleLabel, $sample, $actor, copies: $this->labelCopies($case, $sample));
 
                 $collectedSampleIds[] = $sample->id;
+                $patientSampled = $patientSampled || $requested->subjectType === SampleSubject::Patient;
+            }
+
+            if ($patientSampled && $case->service === CaseService::AutologousPrp) {
+                $case->update(['supplied_at' => $collectedAt]);
+                $this->caseCloser->close($case, $actor, 'sample_collection');
             }
 
             return $case->setRelations([]);
         });
 
         return $this->showSampleCollection->get($case, $collectedSampleIds);
+    }
+
+    private function labelCopies(PatientCase $case, Sample $sample): int
+    {
+        return $sample->subject_type === SampleSubject::Patient ? $case->service->sampleLabelCopies() : 1;
     }
 
     /**

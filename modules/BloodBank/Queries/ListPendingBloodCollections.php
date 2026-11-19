@@ -7,8 +7,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Modules\BloodBank\Data\CaseView;
 use Modules\BloodBank\Enums\CaseDonorStatus;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Models\PatientCase;
+use Modules\BloodBank\Services\BagPlan;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
 use Modules\Shared\Patient\Contracts\PatientDirectory;
@@ -17,8 +19,9 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * The "Pending" tab: open cases of the session's branch with a donor accepted at serology (`eligible`), i.e.
- * cleared to donate and not yet collected. Filter: `filter[care_type]`. Sorts: `created_at` (default oldest
- * first), `case_no`. `per_page` up to 100.
+ * cleared to donate and not yet collected, that still need a unit (a non-empty bag plan; a case already holding
+ * everything it was billed for is left out), and open Therapeutic Phlebotomy cases (not done yet).
+ * Filter: `filter[care_type]`. Sorts: `created_at` (default oldest first), `case_no`. `per_page` up to 100.
  */
 final class ListPendingBloodCollections
 {
@@ -26,6 +29,7 @@ final class ListPendingBloodCollections
         private readonly CurrentBranch $currentBranch,
         private readonly PatientDirectory $patients,
         private readonly InvoiceDirectory $invoices,
+        private readonly BagPlan $bagPlan,
     ) {}
 
     /**
@@ -36,7 +40,11 @@ final class ListPendingBloodCollections
         $baseQuery = PatientCase::query()
             ->where('branch_id', $this->currentBranch->id())
             ->where('status', CaseStatus::Open)
-            ->whereHas('caseDonors', fn (Builder $query) => $query->where('status', CaseDonorStatus::Eligible))
+            ->where(fn (Builder $query) => $query
+                ->where(fn (Builder $query) => $this->bagPlan->whereNeedsUnits(
+                    $query->whereHas('caseDonors', fn (Builder $query) => $query->where('status', CaseDonorStatus::Eligible)),
+                ))
+                ->orWhere('service', CaseService::TherapeuticPhlebotomy))
             ->with('components.componentType')
             ->withCount('caseDonors');
 

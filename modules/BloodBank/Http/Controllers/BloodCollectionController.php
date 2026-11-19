@@ -5,10 +5,10 @@ namespace Modules\BloodBank\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\BloodBank\Actions\CollectBlood;
-use Modules\BloodBank\Actions\PrintBagLabels;
+use Modules\BloodBank\Actions\RecordTherapeuticPhlebotomy;
 use Modules\BloodBank\Data\BloodCollectionLookupData;
 use Modules\BloodBank\Data\CollectBloodData;
-use Modules\BloodBank\Data\PrintBagLabelsData;
+use Modules\BloodBank\Data\RecordTherapeuticPhlebotomyData;
 use Modules\BloodBank\Http\Resources\BagResource;
 use Modules\BloodBank\Http\Resources\BloodCollectionResource;
 use Modules\BloodBank\Http\Resources\CaseResource;
@@ -25,8 +25,13 @@ final class BloodCollectionController
         private readonly ListPendingBloodCollections $listPendingBloodCollections,
         private readonly ListBloodCollections $listBloodCollections,
         private readonly CollectBlood $collectBlood,
-        private readonly PrintBagLabels $printBagLabels,
+        private readonly RecordTherapeuticPhlebotomy $recordTherapeuticPhlebotomy,
     ) {}
+
+    public function recordPhlebotomy(Request $request, PatientCase $case, RecordTherapeuticPhlebotomyData $data): BloodCollectionResource
+    {
+        return BloodCollectionResource::make($this->recordTherapeuticPhlebotomy->handle($request->user(), $case, $data));
+    }
 
     public function lookup(BloodCollectionLookupData $data): BloodCollectionResource
     {
@@ -51,10 +56,5 @@ final class BloodCollectionController
     public function collect(Request $request, PatientCase $case, CaseDonor $caseDonor, CollectBloodData $data): BloodCollectionResource
     {
         return BloodCollectionResource::make($this->collectBlood->handle($request->user(), $case, $caseDonor, $data));
-    }
-
-    public function printLabels(Request $request, PatientCase $case, PrintBagLabelsData $data): AnonymousResourceCollection
-    {
-        return BagResource::collection($this->printBagLabels->handle($request->user(), $case, $data));
     }
 }

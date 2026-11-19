@@ -4,6 +4,7 @@ namespace Modules\BloodBank\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\BloodBank\Enums\CareType;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\Shared\Auth\Models\User;
@@ -32,8 +33,14 @@ final class PatientCaseFactory extends Factory
                 'branch_id' => $attributes['branch_id'],
             ])->id,
             'care_type' => fake()->randomElement(CareType::cases()),
+            'service' => CaseService::Transfusion,
             'status' => CaseStatus::Open,
             'created_by' => User::factory(),
         ];
+    }
+
+    public function service(CaseService $service): self
+    {
+        return $this->state(['service' => $service]);
     }
 }

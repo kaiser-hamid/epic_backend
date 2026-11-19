@@ -3,6 +3,7 @@
 use Modules\BloodBank\Enums\BloodBankAuditAction;
 use Modules\BloodBank\Enums\BloodBankPermission;
 use Modules\BloodBank\Enums\CaseDonorStatus;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SampleSubject;
@@ -202,4 +203,38 @@ it('returns 403 FORBIDDEN when collecting for another branch\'s case', function 
         ->postJson("/api/blood-bank/cases/{$foreign->id}/samples", ['subjects' => [['subject_type' => 'patient']]])
         ->assertForbidden()
         ->assertJson(['code' => 'FORBIDDEN']);
+});
+
+it('prints 5 copies of the Autologous PRP sample label and closes the case on collection', function () {
+    $this->donor->delete();
+    $this->case->update(['service' => CaseService::AutologousPrp]);
+
+    $response = signInToBranch($this, $this->technologist, $this->branch)
+        ->postJson("/api/blood-bank/cases/{$this->case->id}/samples", ['subjects' => [['subject_type' => 'patient']]])
+        ->assertCreated()
+        ->assertJsonPath('data.case.status', 'closed');
+
+    expect($response->json('data.subjects.0.sample.label_command'))->toContain("^C5\r\n")
+        ->and(PrintLog::sole()->copies)->toBe(5)
+        ->and($this->case->fresh())
+        ->status->toBe(CaseStatus::Closed)
+        ->supplied_at->not->toBeNull()
+        ->closed_by->toBe($this->technologist->id);
+});
+
+it('takes no sample for a Therapeutic Phlebotomy', function () {
+    $this->donor->delete();
+    $this->case->update(['service' => CaseService::TherapeuticPhlebotomy]);
+
+    signInToBranch($this, $this->technologist, $this->branch)
+        ->postJson("/api/blood-bank/cases/{$this->case->id}/samples", ['subjects' => [['subject_type' => 'patient']]])
+        ->assertUnprocessable()
+        ->assertJson(['code' => 'PATIENT_SAMPLE_NOT_NEEDED']);
+
+    signInToBranch($this, $this->technologist, $this->branch)
+        ->getJson('/api/blood-bank/sample-collection/pending')
+        ->assertOk()
+        ->assertJsonCount(0, 'data');
+
+    expect(Sample::count())->toBe(0);
 });

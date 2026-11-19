@@ -26,6 +26,7 @@ return new class extends Migration
             $table->unsignedInteger('shelf_life_hours');
             $table->string('storage_condition')->nullable();
             $table->string('default_location_type')->nullable();
+            $table->boolean('is_whole_bag')->default(false)->comment('The bag is kept as one product (WB, platelet apheresis)');
             $table->boolean('is_active')->default(true);
             $table->timestampsTz();
         });

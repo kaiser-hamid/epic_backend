@@ -4,15 +4,15 @@ namespace Modules\BloodBank\Exceptions;
 
 use Modules\Shared\Support\Exceptions\DomainException;
 
-final class ComponentNotNeeded extends DomainException
+final class PatientSampleNotNeeded extends DomainException
 {
     public function __construct()
     {
-        parent::__construct('The case did not request this component, or already has every unit it requested.');
+        parent::__construct('A Therapeutic Phlebotomy takes no sample.');
     }
 
     public function errorCode(): string
     {
-        return 'COMPONENT_NOT_NEEDED';
+        return 'PATIENT_SAMPLE_NOT_NEEDED';
     }
 }

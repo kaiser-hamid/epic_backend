@@ -12,7 +12,8 @@ interface LabelRenderer
     /**
      * @param  string  $template  file name under `resources/label`, e.g. `bb_barcode_label.ezpx`
      * @param  array<string, string>  $values  keyed by template variable (`V00`), replacing each `^V00` in the fields
+     * @param  int  $copies  copies the printer makes of the label (the template's `^C` setup line); the design is unchanged
      * @return string the printer command, lines ending in CRLF
      */
-    public function render(string $template, array $values): string;
+    public function render(string $template, array $values, int $copies = 1): string;
 }

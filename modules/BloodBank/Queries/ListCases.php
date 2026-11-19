@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Modules\BloodBank\Data\CaseView;
+use Modules\BloodBank\Enums\CaseService;
+use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
@@ -19,7 +21,9 @@ use Spatie\QueryBuilder\QueryBuilder;
 /**
  * Cases of the session's branch only. Filters: `filter[case_no]`, `filter[invoice_no]` (the case bill or a
  * replacement donor's bill), `filter[search]` (patient name, phone, patient no), `filter[status]`,
- * `filter[care_type]`, `filter[registered_from]` / `filter[registered_to]` (Y-m-d, inclusive).
+ * `filter[care_type]`, `filter[service]`, `filter[needs_closing]` (open cases that never close by themselves: a
+ * bill with only services such as cross matching or a bed charge), `filter[registered_from]` /
+ * `filter[registered_to]` (Y-m-d, inclusive).
  * Sorts: `created_at` (default newest first), `case_no`. `per_page` up to 100.
  */
 final class ListCases
@@ -48,6 +52,8 @@ final class ListCases
                     ->whereIn('patient_master_id', $this->patients->idsMatching($search)))->delimiter(''),
                 AllowedFilter::exact('status'),
                 AllowedFilter::exact('care_type'),
+                AllowedFilter::exact('service'),
+                AllowedFilter::callback('needs_closing', fn (Builder $query, mixed $value) => $this->whereNeedsClosing($query, filter_var($value, FILTER_VALIDATE_BOOLEAN))),
                 AllowedFilter::callback('registered_from', fn (Builder $query, string $date) => $query
                     ->where('created_at', '>=', $this->date('registered_from', $date)->startOfDay())),
                 AllowedFilter::callback('registered_to', fn (Builder $query, string $date) => $query
@@ -66,6 +72,22 @@ final class ListCases
             $patients[$case->patient_master_id] ?? null,
             $invoices[$case->billing_id] ?? null,
         ));
+    }
+
+    /**
+     * Open transfusion cases with no billed component: nothing in any step closes them.
+     *
+     * @param  Builder<PatientCase>  $query
+     */
+    private function whereNeedsClosing(Builder $query, bool $needsClosing): void
+    {
+        if (! $needsClosing) {
+            return;
+        }
+
+        $query->where('status', CaseStatus::Open)
+            ->where('service', CaseService::Transfusion)
+            ->whereDoesntHave('components');
     }
 
     /**

@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Route;
 use Modules\BloodBank\Http\Controllers\BloodCollectionController;
 use Modules\BloodBank\Http\Controllers\BloodIssueController;
 use Modules\BloodBank\Http\Controllers\CaseController;
-use Modules\BloodBank\Http\Controllers\ComponentPreparationController;
 use Modules\BloodBank\Http\Controllers\ComponentTypeController;
 use Modules\BloodBank\Http\Controllers\DonorController;
 use Modules\BloodBank\Http\Controllers\DonorExaminationController;
@@ -12,6 +11,7 @@ use Modules\BloodBank\Http\Controllers\DonorSerologyController;
 use Modules\BloodBank\Http\Controllers\SampleCollectionController;
 use Modules\BloodBank\Http\Controllers\SampleController;
 use Modules\BloodBank\Http\Controllers\StorageLocationController;
+use Modules\BloodBank\Http\Controllers\UnitController;
 
 /*
 | Blood Bank API under `/api/blood-bank`. Permission checks use `can:` and are evaluated in the session's branch.
@@ -21,6 +21,7 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::get('cases', [CaseController::class, 'index'])->middleware('can:bb.case.view')->name('cases.index');
     Route::get('cases/{case}', [CaseController::class, 'show'])->middleware('can:view,case')->name('cases.show');
     Route::patch('cases/{case}', [CaseController::class, 'update'])->middleware('can:update,case')->name('cases.update');
+    Route::post('cases/{case}/close', [CaseController::class, 'close'])->middleware('can:close,case')->name('cases.close');
     Route::get('add-donor', [CaseController::class, 'lookup'])->middleware('can:bb.case.update')->name('add-donor.lookup');
     Route::post('cases/{case}/donors', [CaseController::class, 'addDonor'])->middleware('can:addDonor,case')->name('cases.donors.store');
 
@@ -45,15 +46,11 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::get('blood-collection/pending', [BloodCollectionController::class, 'pending'])->middleware('can:bb.collection.view')->name('blood-collection.pending');
     Route::get('cases/{case}/blood-collection', [BloodCollectionController::class, 'show'])->middleware('can:viewBloodCollection,case')->name('cases.blood-collection.show');
     Route::post('cases/{case}/donors/{caseDonor}/collection', [BloodCollectionController::class, 'collect'])->middleware('can:collectBlood,case')->name('cases.donors.collection.store');
-    Route::post('cases/{case}/bag-labels', [BloodCollectionController::class, 'printLabels'])->middleware('can:printBagLabels,case')->name('cases.bag-labels.store');
+    Route::post('cases/{case}/therapeutic-phlebotomy', [BloodCollectionController::class, 'recordPhlebotomy'])->middleware('can:recordPhlebotomy,case')->name('cases.therapeutic-phlebotomy.store');
     Route::get('blood-collections', [BloodCollectionController::class, 'index'])->middleware('can:bb.collection.view')->name('blood-collections.index');
 
-    Route::get('component-preparation', [ComponentPreparationController::class, 'lookup'])->middleware('can:bb.unit.view')->name('component-preparation.lookup');
-    Route::get('component-preparation/pending', [ComponentPreparationController::class, 'pending'])->middleware('can:bb.unit.view')->name('component-preparation.pending');
-    Route::get('cases/{case}/bags/{collection}/component-preparation', [ComponentPreparationController::class, 'show'])->middleware('can:viewUnits,case')->name('cases.bags.component-preparation.show');
-    Route::post('cases/{case}/bags/{collection}/units', [ComponentPreparationController::class, 'prepare'])->middleware('can:prepareUnits,case')->name('cases.bags.units.store');
-    Route::post('cases/{case}/unit-labels', [ComponentPreparationController::class, 'printLabels'])->middleware('can:printUnitLabels,case')->name('cases.unit-labels.store');
-    Route::get('units', [ComponentPreparationController::class, 'index'])->middleware('can:bb.unit.view')->name('units.index');
+    Route::post('cases/{case}/unit-labels', [UnitController::class, 'printLabels'])->middleware('can:printUnitLabels,case')->name('cases.unit-labels.store');
+    Route::get('units', [UnitController::class, 'index'])->middleware('can:bb.unit.view')->name('units.index');
 
     Route::get('blood-issue', [BloodIssueController::class, 'lookup'])->middleware('can:bb.issue.view')->name('blood-issue.lookup');
     Route::get('blood-issue/pending', [BloodIssueController::class, 'pending'])->middleware('can:bb.issue.view')->name('blood-issue.pending');

@@ -24,6 +24,11 @@ final class PatientCasePolicy
         return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CaseUpdate, $case->branch_id);
     }
 
+    public function close(User $user, PatientCase $case): bool
+    {
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CaseClose, $case->branch_id);
+    }
+
     public function addDonor(User $user, PatientCase $case): bool
     {
         return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CaseUpdate, $case->branch_id);
@@ -74,19 +79,9 @@ final class PatientCasePolicy
         return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CollectionCollect, $case->branch_id);
     }
 
-    public function printBagLabels(User $user, PatientCase $case): bool
+    public function recordPhlebotomy(User $user, PatientCase $case): bool
     {
-        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::CollectionLabelPrint, $case->branch_id);
-    }
-
-    public function viewUnits(User $user, PatientCase $case): bool
-    {
-        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::UnitView, $case->branch_id);
-    }
-
-    public function prepareUnits(User $user, PatientCase $case): bool
-    {
-        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::UnitPrepare, $case->branch_id);
+        return $this->accessChecker->allowsOnRecord($user, BloodBankPermission::PhlebotomyRecord, $case->branch_id);
     }
 
     public function printUnitLabels(User $user, PatientCase $case): bool

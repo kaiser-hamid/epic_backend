@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Modules\BloodBank\Database\Seeders\BillableItemSeeder;
 use Modules\BloodBank\Database\Seeders\ComponentTypeSeeder;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Branch\Models\Branch;
@@ -46,7 +47,7 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        $this->call([DepartmentSeeder::class, TestItemSeeder::class, BloodBankTestItemSeeder::class, ComponentTypeSeeder::class]);
+        $this->call([DepartmentSeeder::class, TestItemSeeder::class, BloodBankTestItemSeeder::class, ComponentTypeSeeder::class, BillableItemSeeder::class]);
 
         User::factory()->superAdmin()->mustChangePassword()->create([
             'employee_id' => 'EMP-0001',

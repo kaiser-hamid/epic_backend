@@ -23,6 +23,8 @@ final class CaseSummaryResource extends JsonResource
             'case_no' => $this->case_no,
             'status' => $this->status->value,
             'care_type' => $this->care_type->value,
+            'service' => $this->service->value,
+            'keeps_units_in_storage' => $this->keeps_units_in_storage,
             'transfusion_reason' => $this->transfusion_reason,
             'reference_note' => $this->reference_note,
             'created_at' => $this->created_at?->toIso8601String(),

@@ -7,7 +7,7 @@ use Modules\BloodBank\Models\Collection;
 
 /**
  * One donor row of the blood collection screen: the case donor (with `donor` loaded), its bag (with `collector`
- * loaded; null until collected), whether blood can be collected now, and how often the bag label was printed.
+ * loaded; null until collected) and whether blood can be collected now.
  */
 final readonly class BloodCollectionRow
 {
@@ -15,6 +15,5 @@ final readonly class BloodCollectionRow
         public CaseDonor $caseDonor,
         public ?Collection $collection,
         public bool $isCollectable,
-        public int $labelPrintCount,
     ) {}
 }

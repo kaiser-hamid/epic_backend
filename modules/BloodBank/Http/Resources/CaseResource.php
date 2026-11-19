@@ -10,7 +10,10 @@ use Modules\BloodBank\Models\CaseDonor;
 
 /**
  * A case with its patient and invoice. With donors loaded, each donor row carries `invoice_no`: its own bill
- * (an added donor's charge), or null for donors registered with the case.
+ * (an added donor's charge), or null for donors registered with the case. `service` is the path the case follows
+ * (`transfusion`, `autologous_prp`, `therapeutic_phlebotomy`); `closed_at` / `closed_by` / `close_reason` are set
+ * once it closes. The case details response adds `closing`: `can_close` ("Close case" button: open, no unit
+ * reserved) and `needs_reason` (billed work outstanding, so the reason is required).
  *
  * @property-read CaseView $resource
  */
@@ -29,9 +32,18 @@ final class CaseResource extends JsonResource
             'branch_id' => $case->branch_id,
             'status' => $case->status->value,
             'care_type' => $case->care_type->value,
+            'service' => $case->service->value,
+            'keeps_units_in_storage' => $case->keeps_units_in_storage,
             'transfusion_reason' => $case->transfusion_reason,
             'reference_note' => $case->reference_note,
             'supplied_at' => $case->supplied_at?->toIso8601String(),
+            'closed_at' => $case->closed_at?->toIso8601String(),
+            'closed_by' => $case->relationLoaded('closer') && $case->closer !== null ? ['id' => $case->closer->id, 'name' => $case->closer->name] : null,
+            'close_reason' => $case->close_reason,
+            'closing' => $this->resource->closing === null ? null : [
+                'can_close' => $this->resource->closing->canClose,
+                'needs_reason' => $this->resource->closing->needsReason,
+            ],
             'patient' => $this->resource->patient?->toArray(),
             'invoice' => $this->resource->invoice?->toArray(),
             'components' => $this->when($case->relationLoaded('components'), fn () => CaseComponentResource::collection($case->components)),

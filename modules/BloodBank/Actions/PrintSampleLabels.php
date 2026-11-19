@@ -49,10 +49,15 @@ final class PrintSampleLabels
             /** @var Sample $sample */
             $sample = $samples[$sampleId]->setRelation('patientCase', $case);
 
-            return new SampleView(
+            $view = new SampleView(
                 $sample,
                 new SubjectView($sample->subject_type, $sample->caseDonor, $sample->case_donor_id === null ? $patient : null),
-                $this->printLogger->record(PrintDocumentType::SampleLabel, $sample, $actor, $data->reprintReason),
+            );
+
+            return new SampleView(
+                $sample,
+                $view->subject,
+                $this->printLogger->record(PrintDocumentType::SampleLabel, $sample, $actor, $data->reprintReason, $this->labelCommands->copies($case, $view)),
             );
         }, $data->sampleIds));
 

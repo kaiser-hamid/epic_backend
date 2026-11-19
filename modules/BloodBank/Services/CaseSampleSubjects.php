@@ -15,7 +15,8 @@ use Modules\Shared\Patient\Data\PatientSummary;
 /**
  * Who a case's samples are drawn from: the patient, then every case donor in sequence order, each with its
  * latest sample. A subject is collectable while the case is open, it has no sample or only rejected ones, and
- * (for a donor) the physician accepted the donor at the physical exam (`fit`).
+ * (for a donor) the physician accepted the donor at the physical exam (`fit`). A Therapeutic Phlebotomy case
+ * takes no patient sample.
  */
 final class CaseSampleSubjects
 {
@@ -48,15 +49,18 @@ final class CaseSampleSubjects
             $sample,
             $case->status === CaseStatus::Open
                 && ($sample === null || $sample->status === SampleStatus::Rejected)
-                && $this->isReadyForSample($subject),
+                && $this->isReadyForSample($case, $subject),
         );
     }
 
     /**
-     * The patient always is; a donor only once the physician accepted them at the physical exam (`fit`).
+     * The patient is, unless the case takes no sample (Therapeutic Phlebotomy); a donor only once the physician
+     * accepted them at the physical exam (`fit`).
      */
-    private function isReadyForSample(SubjectView $subject): bool
+    private function isReadyForSample(PatientCase $case, SubjectView $subject): bool
     {
-        return $subject->type === SampleSubject::Patient || $subject->caseDonor?->status === CaseDonorStatus::Fit;
+        return $subject->type === SampleSubject::Patient
+            ? $case->service->takesPatientSample()
+            : $subject->caseDonor?->status === CaseDonorStatus::Fit;
     }
 }

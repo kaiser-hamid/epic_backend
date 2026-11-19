@@ -3,6 +3,7 @@
 use Modules\BloodBank\Enums\BloodBankAuditAction;
 use Modules\BloodBank\Enums\BloodBankPermission;
 use Modules\BloodBank\Enums\CaseDonorStatus;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\Donor;
@@ -151,3 +152,13 @@ it('rejects an incomplete form', function (array $payload, string $field) {
     'missing invoice no' => [['donor' => ['name' => 'Selim Reza', 'age' => 30]], 'invoice_no'],
     'returning and new donor together' => [fn () => ['invoice_no' => 'NB2611020007', 'donor_id' => Donor::factory()->create()->id, 'donor' => ['name' => 'Selim Reza', 'age' => 30]], 'donor_id'],
 ]);
+
+it('refuses a donor on an Autologous PRP or Therapeutic Phlebotomy case', function (CaseService $service) {
+    $this->case->update(['service' => $service]);
+
+    ($this->addDonor)(['invoice_no' => 'NB2611020001', 'donor_id' => Donor::factory()->create()->id])
+        ->assertUnprocessable()
+        ->assertJson(['code' => 'CASE_TAKES_NO_DONORS']);
+
+    expect(CaseDonor::count())->toBe(1);
+})->with([CaseService::AutologousPrp, CaseService::TherapeuticPhlebotomy]);

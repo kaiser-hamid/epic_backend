@@ -12,15 +12,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\BloodBank\Database\Factories\PatientCaseFactory;
 use Modules\BloodBank\Enums\CareType;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Policies\PatientCasePolicy;
 use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_cases')]
-#[Fillable(['case_no', 'patient_master_id', 'billing_id', 'branch_id', 'care_type', 'transfusion_reason', 'reference_note', 'status', 'supplied_at', 'created_by'])]
+#[Fillable([
+    'case_no', 'patient_master_id', 'billing_id', 'branch_id', 'care_type', 'service', 'keeps_units_in_storage', 'transfusion_reason',
+    'reference_note', 'status', 'supplied_at', 'closed_at', 'closed_by', 'close_reason', 'created_by',
+])]
 #[UseFactory(PatientCaseFactory::class)]
 #[UsePolicy(PatientCasePolicy::class)]
 final class PatientCase extends Model
@@ -29,20 +34,41 @@ final class PatientCase extends Model
     use HasFactory, SoftDeletes;
 
     /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'service' => 'transfusion',
+        'keeps_units_in_storage' => false,
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'care_type' => CareType::class,
+            'service' => CaseService::class,
+            'keeps_units_in_storage' => 'boolean',
             'status' => CaseStatus::class,
             'supplied_at' => 'datetime',
+            'closed_at' => 'datetime',
         ];
     }
 
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function closer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    public function phlebotomy(): HasOne
+    {
+        return $this->hasOne(Phlebotomy::class, 'case_id');
     }
 
     public function caseDonors(): HasMany

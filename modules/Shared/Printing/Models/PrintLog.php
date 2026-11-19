@@ -14,10 +14,11 @@ use Modules\Shared\Printing\Database\Factories\PrintLogFactory;
 
 /**
  * Append-only record of every print and reprint across modules. `document_type` holds a
- * module-prefixed enum value (e.g. `bb.sample_label`); `printable_type` holds a morph alias.
+ * module-prefixed enum value (e.g. `bb.sample_label`); `printable_type` holds a morph alias. `copies` is how many
+ * copies the print job asked for (e.g. the 5 Autologous PRP tube labels).
  */
 #[Table('sh_print_logs')]
-#[Fillable(['document_type', 'printable_type', 'printable_id', 'printed_by', 'printed_at', 'is_reprint', 'reprint_reason'])]
+#[Fillable(['document_type', 'printable_type', 'printable_id', 'printed_by', 'printed_at', 'copies', 'is_reprint', 'reprint_reason'])]
 #[UseFactory(PrintLogFactory::class)]
 final class PrintLog extends Model
 {
@@ -31,6 +32,7 @@ final class PrintLog extends Model
     {
         return [
             'is_reprint' => 'boolean',
+            'copies' => 'integer',
             'printed_at' => 'datetime',
         ];
     }

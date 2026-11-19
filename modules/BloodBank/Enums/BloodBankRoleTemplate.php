@@ -14,18 +14,18 @@ enum BloodBankRoleTemplate: string implements RoleTemplateDefinition
     case Physician = 'Physician';
     case Serology = 'Serology';
     case BloodCollection = 'Blood collection';
-    case ComponentPreparation = 'Component preparation';
+    case Units = 'Units';
     case BloodIssue = 'Blood issue';
 
     public function description(): string
     {
         return match ($this) {
-            self::CaseDesk => 'Find and edit Blood Bank cases and their donors',
+            self::CaseDesk => 'Find, edit and close Blood Bank cases and add their donors',
             self::SampleCollection => 'Collect patient and donor samples and print their labels',
             self::Physician => 'Examine donors and accept or defer them',
             self::Serology => 'Record donor serology results',
-            self::BloodCollection => 'Draw blood from eligible donors and print bag labels',
-            self::ComponentPreparation => 'Prepare blood components and print unit labels',
+            self::BloodCollection => 'Draw blood from eligible donors into patient and storage units, print their labels and record therapeutic phlebotomies',
+            self::Units => 'Search blood units and reprint their labels',
             self::BloodIssue => 'Issue blood to cases and print the Compatibility Test Report',
         };
     }
@@ -36,12 +36,12 @@ enum BloodBankRoleTemplate: string implements RoleTemplateDefinition
     public function permissions(): array
     {
         return match ($this) {
-            self::CaseDesk => [BloodBankPermission::CaseView, BloodBankPermission::CaseUpdate, BloodBankPermission::DonorView],
+            self::CaseDesk => [BloodBankPermission::CaseView, BloodBankPermission::CaseUpdate, BloodBankPermission::CaseClose, BloodBankPermission::DonorView],
             self::SampleCollection => [BloodBankPermission::CaseView, BloodBankPermission::SampleView, BloodBankPermission::SampleCollect, BloodBankPermission::SampleLabelPrint],
             self::Physician => [BloodBankPermission::DonorView, BloodBankPermission::DonorExamView, BloodBankPermission::DonorExamRecord],
             self::Serology => [BloodBankPermission::SerologyView, BloodBankPermission::SerologyRecord],
-            self::BloodCollection => [BloodBankPermission::CollectionView, BloodBankPermission::CollectionCollect, BloodBankPermission::CollectionLabelPrint],
-            self::ComponentPreparation => [BloodBankPermission::UnitView, BloodBankPermission::UnitPrepare, BloodBankPermission::UnitLabelPrint],
+            self::BloodCollection => [BloodBankPermission::CollectionView, BloodBankPermission::CollectionCollect, BloodBankPermission::PhlebotomyRecord, BloodBankPermission::UnitView, BloodBankPermission::UnitLabelPrint],
+            self::Units => [BloodBankPermission::UnitView, BloodBankPermission::UnitLabelPrint],
             self::BloodIssue => [BloodBankPermission::IssueView, BloodBankPermission::IssueRecord, BloodBankPermission::IssueReportPrint],
         };
     }

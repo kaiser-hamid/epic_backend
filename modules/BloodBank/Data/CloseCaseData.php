@@ -8,13 +8,14 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
- * The component preparation screen's scan: `?bag_no=` (the bag label barcode).
+ * "Close case" on the case details page: `reason` is optional when nothing billed is outstanding, required
+ * otherwise (`CLOSE_REASON_REQUIRED`).
  */
 #[MapName(SnakeCaseMapper::class)]
-final class ComponentPreparationLookupData extends Data
+final class CloseCaseData extends Data
 {
     public function __construct(
-        #[Max(30)]
-        public string $bagNo,
+        #[Max(1000)]
+        public ?string $reason = null,
     ) {}
 }

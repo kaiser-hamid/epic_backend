@@ -15,11 +15,12 @@ use Modules\Shared\Printing\Models\PrintLog;
 interface PrintLogger
 {
     /**
-     * Log one print. It is a reprint when the same document was already printed for the record.
+     * Log one print job of `$copies` copies. It is a reprint when the same document was already printed for the
+     * record.
      *
      * @throws ReprintReasonRequired
      */
-    public function record(BackedEnum $documentType, Model $printable, User $printedBy, ?string $reprintReason = null): PrintLog;
+    public function record(BackedEnum $documentType, Model $printable, User $printedBy, ?string $reprintReason = null, int $copies = 1): PrintLog;
 
     public function printCount(BackedEnum $documentType, Model $printable): int;
 }

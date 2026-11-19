@@ -14,6 +14,8 @@ use Modules\Shared\Printing\Contracts\LabelRenderer;
  * (`A{font},x,y,...,^Vxx`, not rotated) of a centred variable gets the x that centres its value on the label width
  * (`^W`, mm), measured with the CG Triumvirate (Helvetica) widths of the internal fonts A–H (6–30 pt). A value too
  * wide for the label drops to the next smaller font. Values are put on one line and line endings are CRLF.
+ *
+ * The copy count is the template's `^Cn` setup line (GoDEX: copies of each label), set to the requested copies.
  */
 final class FileLabelRenderer implements LabelRenderer
 {
@@ -48,7 +50,7 @@ final class FileLabelRenderer implements LabelRenderer
         private readonly Filesystem $files,
     ) {}
 
-    public function render(string $template, array $values): string
+    public function render(string $template, array $values, int $copies = 1): string
     {
         $lines = preg_split('/\r?\n/', $this->files->get(resource_path('label/'.$template))) ?: [];
         $labelWidth = $this->labelWidthDots($lines);
@@ -66,7 +68,11 @@ final class FileLabelRenderer implements LabelRenderer
             $variables[$variable]['length'] ?? PHP_INT_MAX,
         );
 
-        $lines = array_map(function (string $line) use ($values, $variables, $valueOf, $labelWidth): string {
+        $lines = array_map(function (string $line) use ($values, $variables, $valueOf, $labelWidth, $copies): string {
+            if (preg_match('/^\^C\d+$/', $line) === 1) {
+                return '^C'.max(1, $copies);
+            }
+
             $isCentredText = preg_match('/^A([A-H]),(-?\d+),(-?\d+),(\d+),(\d+),(\d+),(0[^,]*),\^(V\d{2})$/', $line, $field) === 1
                 && array_key_exists($field[8], $values)
                 && ($variables[$field[8]]['centred'] ?? false)

@@ -3,6 +3,7 @@
 namespace Modules\BloodBank\Services;
 
 use Modules\BloodBank\Data\SampleView;
+use Modules\BloodBank\Enums\SampleSubject;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
 use Modules\Shared\Patient\Enums\Gender;
@@ -16,6 +17,8 @@ use Modules\Shared\Printing\Contracts\LabelRenderer;
  *   donor's charge) or else the case's
  * - `V02`: the test item codes billed on that invoice, comma separated
  * - `V03`: `{M|F|O}-{age}Y {print time}`, e.g. `M-36Y 27/10/2026 08:16 PM`
+ *
+ * An Autologous PRP patient sample label prints 5 copies (the printer's copy count, `^C5`), one per tube.
  */
 final class SampleLabelCommands
 {
@@ -61,10 +64,18 @@ final class SampleLabelCommands
                 'V01' => substr($billingId === null ? '' : ($invoices[$billingId]->invoiceNo ?? ''), self::BRANCH_CODE_LENGTH).'|'.$sampleNo,
                 'V02' => implode(',', $billingId === null ? [] : ($testItemCodes[$billingId] ?? [])),
                 'V03' => $this->genderAndAge($view).' '.$printedAt,
-            ]);
+            ], $this->copies($case, $view));
         }
 
         return $commands;
+    }
+
+    /**
+     * Copies per print: one per tube, so 5 for an Autologous PRP patient sample, else 1.
+     */
+    public function copies(PatientCase $case, SampleView $view): int
+    {
+        return $view->sample->subject_type === SampleSubject::Patient ? $case->service->sampleLabelCopies() : 1;
     }
 
     private function genderAndAge(SampleView $view): string

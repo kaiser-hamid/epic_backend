@@ -111,12 +111,12 @@ Unique `(branch_id, module)`. Only optional modules are listed: a module whose p
 
 | Module | Template | Permissions |
 |---|---|---|
-| Blood Bank | Case desk | `bb.case.view`, `bb.case.update`, `bb.donor.view` |
+| Blood Bank | Case desk | `bb.case.view`, `bb.case.update`, `bb.case.close`, `bb.donor.view` |
 | | Sample collection | `bb.case.view`, `bb.sample.view`, `bb.sample.collect`, `bb.sample.print_label` |
 | | Physician | `bb.donor.view`, `bb.donor_exam.view`, `bb.donor_exam.record` |
 | | Serology | `bb.serology.view`, `bb.serology.record` |
-| | Blood collection | `bb.collection.view`, `bb.collection.collect`, `bb.collection.print_label` |
-| | Component preparation | `bb.unit.view`, `bb.unit.prepare`, `bb.unit.print_label` |
+| | Blood collection | `bb.collection.view`, `bb.collection.collect`, `bb.phlebotomy.record`, `bb.unit.view`, `bb.unit.print_label` |
+| | Units | `bb.unit.view`, `bb.unit.print_label` |
 | | Blood issue | `bb.issue.view`, `bb.issue.record`, `bb.issue.print_report` |
 | Billing | Cashier | `sh.billing.view`, `sh.billing.create`, `sh.billing.print`, `sh.patient.view`, `sh.patient.create` |
 | | Billing viewer | `sh.billing.view` |

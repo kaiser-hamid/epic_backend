@@ -9,7 +9,7 @@ use Modules\Shared\Patient\Data\PatientSummary;
 /**
  * A case with the patient and invoice details read from Shared through its directories (Blood Bank never
  * loads Shared models). `donorInvoices` holds the separate bills of added donors, keyed by billing id, when the
- * donors are loaded. Rendered by CaseResource.
+ * donors are loaded. `closing` (case details only) says whether "Close case" is offered. Rendered by CaseResource.
  */
 final readonly class CaseView
 {
@@ -21,5 +21,6 @@ final readonly class CaseView
         public ?PatientSummary $patient,
         public ?InvoiceSummary $invoice,
         public array $donorInvoices = [],
+        public ?CaseClosingView $closing = null,
     ) {}
 }

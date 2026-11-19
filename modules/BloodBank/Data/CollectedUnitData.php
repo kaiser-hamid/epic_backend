@@ -8,17 +8,16 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 /**
- * One unit made from the bag: its component, volume, and whether it is reserved for this case's patient
- * (`for_case`) or goes to stock. A stock unit needs a storage location; a unit for the patient may have one.
+ * One row of the "Collect" popup: a unit of the bag plan (by component type), the shelf it is stored on (required
+ * for a stock unit, and for a patient unit of a case that keeps its units in storage) and, optionally, its volume.
  */
 #[MapName(SnakeCaseMapper::class)]
-final class PreparedUnitData extends Data
+final class CollectedUnitData extends Data
 {
     public function __construct(
         public int $componentTypeId,
         public ?int $storageLocationId = null,
         #[Between(1, 600)]
         public ?int $volumeMl = null,
-        public bool $forCase = false,
     ) {}
 }

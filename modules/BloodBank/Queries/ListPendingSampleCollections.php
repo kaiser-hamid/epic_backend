@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Modules\BloodBank\Data\CaseView;
 use Modules\BloodBank\Enums\CaseDonorStatus;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SampleSubject;
@@ -19,7 +20,8 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * The "Pending" tab: open cases of the session's branch still waiting for a sample from the patient or from a
- * donor the physician accepted (`fit`); a rejected sample counts as not collected. Filter: `filter[care_type]`.
+ * donor the physician accepted (`fit`); a rejected sample counts as not collected. A Therapeutic Phlebotomy takes
+ * no sample, so it never waits here. Filter: `filter[care_type]`.
  * Sorts: `created_at` (default oldest first), `case_no`. `per_page` up to 100.
  */
 final class ListPendingSampleCollections
@@ -41,7 +43,9 @@ final class ListPendingSampleCollections
             ->where('branch_id', $this->currentBranch->id())
             ->where('status', CaseStatus::Open)
             ->where(fn (Builder $query) => $query
-                ->whereDoesntHave('samples', fn (Builder $query) => $notRejected($query->where('subject_type', SampleSubject::Patient)))
+                ->where(fn (Builder $query) => $query
+                    ->where('service', '!=', CaseService::TherapeuticPhlebotomy)
+                    ->whereDoesntHave('samples', fn (Builder $query) => $notRejected($query->where('subject_type', SampleSubject::Patient))))
                 ->orWhereHas('caseDonors', fn (Builder $query) => $query
                     ->where('status', CaseDonorStatus::Fit)
                     ->whereDoesntHave('samples', $notRejected)))

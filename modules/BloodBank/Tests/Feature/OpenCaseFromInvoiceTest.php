@@ -3,6 +3,8 @@
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Modules\BloodBank\Enums\BloodBankAuditAction;
+use Modules\BloodBank\Enums\CaseService;
+use Modules\BloodBank\Models\BillableItem;
 use Modules\BloodBank\Models\ComponentType;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\Shared\Audit\Models\AuditLog;
@@ -22,6 +24,8 @@ beforeEach(function () {
 
     $this->pcv = ComponentType::factory()->create(['code' => 'PCV']);
     $this->fp = ComponentType::factory()->create(['code' => 'FP']);
+    $this->pcvItem = BillableItem::factory()->component($this->pcv)->create();
+    $this->fpItem = BillableItem::factory()->component($this->fp)->create();
     $this->crossMatching = TestItem::factory()->bloodBank()->create();
 
     $this->bill = fn (array $payload): TestResponse => signInToBranch($this, $this->cashier, $this->branch)
@@ -41,8 +45,8 @@ it('opens one Blood Bank case from a Blood Bank bill, requesting the billed comp
 
     ($this->bill)([
         'items' => [
-            ['test_item_id' => $this->pcv->test_item_id, 'quantity' => 2],
-            ['test_item_id' => $this->fp->test_item_id],
+            ['test_item_id' => $this->pcvItem->test_item_id, 'quantity' => 2],
+            ['test_item_id' => $this->fpItem->test_item_id],
             ['test_item_id' => $this->crossMatching->id],
         ],
         'category_details' => ['care_type' => 'daycare'],
@@ -57,14 +61,14 @@ it('opens one Blood Bank case from a Blood Bank bill, requesting the billed comp
         ->and($case->branch_id)->toBe($this->branch->id)
         ->and($case->care_type->value)->toBe('daycare')
         ->and($case->components->map->only(['component_type_id', 'test_item_id', 'quantity'])->all())->toBe([
-            ['component_type_id' => $this->pcv->id, 'test_item_id' => $this->pcv->test_item_id, 'quantity' => 2],
-            ['component_type_id' => $this->fp->id, 'test_item_id' => $this->fp->test_item_id, 'quantity' => 1],
+            ['component_type_id' => $this->pcv->id, 'test_item_id' => $this->pcvItem->test_item_id, 'quantity' => 2],
+            ['component_type_id' => $this->fp->id, 'test_item_id' => $this->fpItem->test_item_id, 'quantity' => 1],
         ])
         ->and(AuditLog::where('action', BloodBankAuditAction::CaseOpened)->sole()->new_values['invoice_no'])->toBe($billing->invoice_no);
 });
 
 it('needs "Care of" on a Blood Bank bill and saves nothing without it', function () {
-    ($this->bill)(['items' => [['test_item_id' => $this->pcv->test_item_id]]])
+    ($this->bill)(['items' => [['test_item_id' => $this->pcvItem->test_item_id]]])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('category_details.care_type');
 
@@ -74,7 +78,7 @@ it('needs "Care of" on a Blood Bank bill and saves nothing without it', function
 it('opens no second case when the same bill form is submitted again', function () {
     $payload = [
         'idempotency_key' => (string) Str::uuid(),
-        'items' => [['test_item_id' => $this->pcv->test_item_id]],
+        'items' => [['test_item_id' => $this->pcvItem->test_item_id]],
         'category_details' => ['care_type' => 'out'],
     ];
 
@@ -96,7 +100,7 @@ it('opens the case of a bill mixing Blood Bank and general items from the Blood 
     ($this->bill)([
         'items' => [
             ['test_item_id' => TestItem::factory()->create()->id],
-            ['test_item_id' => $this->pcv->test_item_id],
+            ['test_item_id' => $this->pcvItem->test_item_id],
         ],
         'category_details' => ['care_type' => 'out'],
     ])->assertCreated();
@@ -117,7 +121,7 @@ it('refuses a Blood Bank bill in a branch without a blood bank and saves nothing
             'paid_amount' => 0,
             'patient_id' => PatientMaster::factory()->create()->id,
             'referral' => ['is_self_referral' => true],
-            'items' => [['test_item_id' => $this->pcv->test_item_id]],
+            'items' => [['test_item_id' => $this->pcvItem->test_item_id]],
             'category_details' => ['care_type' => 'out'],
         ])
         ->assertUnprocessable()
@@ -132,10 +136,76 @@ it('leaves no bill behind when the case cannot be opened', function () {
     PatientCase::factory()->create(['case_no' => 'BC2611000001']);
 
     ($this->bill)([
-        'items' => [['test_item_id' => $this->pcv->test_item_id]],
+        'items' => [['test_item_id' => $this->pcvItem->test_item_id]],
         'category_details' => ['care_type' => 'out'],
     ])->assertServerError();
 
     expect(Billing::whereNotNull('idempotency_key')->exists())->toBeFalse()
         ->and(PatientCase::count())->toBe(1);
+});
+
+it('requests the units an item stands for, adding up items of the same component', function () {
+    $thalassemia = BillableItem::factory()->component($this->pcv)->create();
+    $platelet = ComponentType::factory()->create(['code' => 'PLATELET']);
+    $plateletFourToOne = BillableItem::factory()->component($platelet, unitsPerQuantity: 4)->create();
+
+    ($this->bill)([
+        'items' => [
+            ['test_item_id' => $this->pcvItem->test_item_id],
+            ['test_item_id' => $thalassemia->test_item_id],
+            ['test_item_id' => $plateletFourToOne->test_item_id],
+        ],
+        'category_details' => ['care_type' => 'daycare'],
+    ])->assertCreated();
+
+    $case = PatientCase::with('components')->sole();
+
+    expect($case->service)->toBe(CaseService::Transfusion)
+        ->and($case->components->map->only(['component_type_id', 'quantity'])->all())->toBe([
+            ['component_type_id' => $this->pcv->id, 'quantity' => 2],
+            ['component_type_id' => $platelet->id, 'quantity' => 4],
+        ]);
+});
+
+it('opens a procedure case for an Autologous PRP or Therapeutic Phlebotomy bill', function (CaseService $service) {
+    $procedure = BillableItem::factory()->procedure($service)->create();
+
+    ($this->bill)([
+        'items' => [['test_item_id' => $procedure->test_item_id], ['test_item_id' => $this->crossMatching->id]],
+        'category_details' => ['care_type' => 'daycare'],
+    ])->assertCreated();
+
+    $case = PatientCase::with('components')->sole();
+
+    expect($case->service)->toBe($service)->and($case->components)->toBeEmpty();
+})->with([CaseService::AutologousPrp, CaseService::TherapeuticPhlebotomy]);
+
+it('refuses a bill mixing Blood Bank services and saves nothing', function (Closure $items) {
+    ($this->bill)([
+        'items' => $items->call($this),
+        'category_details' => ['care_type' => 'daycare'],
+    ])->assertUnprocessable()->assertJson(['code' => 'SERVICES_NOT_COMBINABLE']);
+
+    expect(Billing::count())->toBe(0)->and(PatientCase::count())->toBe(0);
+})->with([
+    'a procedure with a component' => [fn () => [
+        ['test_item_id' => BillableItem::factory()->procedure(CaseService::AutologousPrp)->create()->test_item_id],
+        ['test_item_id' => $this->pcvItem->test_item_id],
+    ]],
+    'two procedures' => [fn () => [
+        ['test_item_id' => BillableItem::factory()->procedure(CaseService::AutologousPrp)->create()->test_item_id],
+        ['test_item_id' => BillableItem::factory()->procedure(CaseService::TherapeuticPhlebotomy)->create()->test_item_id],
+    ]],
+]);
+
+it('keeps the patient units in storage when the storage fee is billed', function () {
+    ($this->bill)([
+        'items' => [
+            ['test_item_id' => $this->pcvItem->test_item_id],
+            ['test_item_id' => BillableItem::factory()->storageFee()->create()->test_item_id],
+        ],
+        'category_details' => ['care_type' => 'out'],
+    ])->assertCreated();
+
+    expect(PatientCase::sole()->keeps_units_in_storage)->toBeTrue();
 });

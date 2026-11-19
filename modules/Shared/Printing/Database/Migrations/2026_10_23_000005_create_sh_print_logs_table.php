@@ -15,6 +15,7 @@ return new class extends Migration
             $table->unsignedBigInteger('printable_id');
             $table->foreignId('printed_by')->constrained('users');
             $table->timestampTz('printed_at');
+            $table->unsignedSmallInteger('copies')->default(1);
             $table->boolean('is_reprint')->default(false);
             $table->text('reprint_reason')->nullable();
             $table->timestampsTz();

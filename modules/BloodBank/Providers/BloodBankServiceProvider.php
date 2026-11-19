@@ -12,6 +12,7 @@ use Modules\BloodBank\Models\Collection;
 use Modules\BloodBank\Models\Crossmatch;
 use Modules\BloodBank\Models\Donor;
 use Modules\BloodBank\Models\PatientCase;
+use Modules\BloodBank\Models\Phlebotomy;
 use Modules\BloodBank\Models\Sample;
 use Modules\BloodBank\Models\Unit;
 use Modules\BloodBank\Services\BloodBankInvoiceHandler;
@@ -44,6 +45,7 @@ final class BloodBankServiceProvider extends ServiceProvider
             'bb.collection' => Collection::class,
             'bb.unit' => Unit::class,
             'bb.crossmatch' => Crossmatch::class,
+            'bb.phlebotomy' => Phlebotomy::class,
         ]);
 
         $permissions->register(BloodBankPermission::class);

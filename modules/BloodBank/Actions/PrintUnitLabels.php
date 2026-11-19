@@ -10,8 +10,8 @@ use Modules\BloodBank\Enums\PrintDocumentType;
 use Modules\BloodBank\Exceptions\UnitNotInCase;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Unit;
-use Modules\BloodBank\Services\BagLabelCommands;
 use Modules\BloodBank\Services\DonorScreeningResults;
+use Modules\BloodBank\Services\UnitLabelCommands;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Patient\Contracts\PatientDirectory;
 use Modules\Shared\Printing\Contracts\PrintLogger;
@@ -28,7 +28,7 @@ final class PrintUnitLabels
         private readonly PrintLogger $printLogger,
         private readonly PatientDirectory $patients,
         private readonly DonorScreeningResults $screeningResults,
-        private readonly BagLabelCommands $labelCommands,
+        private readonly UnitLabelCommands $labelCommands,
     ) {}
 
     /**

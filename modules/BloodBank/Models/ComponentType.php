@@ -12,24 +12,17 @@ use Modules\BloodBank\Database\Factories\ComponentTypeFactory;
 use Modules\BloodBank\Enums\StorageLocationType;
 
 /**
- * A blood component (WB, PCV, FP…), created from the Blood Bank catalog item that bills it: `test_item_id` with the
- * item's code and name copied. Its own short `code`, `unit_prefix` and shelf life drive preparation and labels.
+ * A blood component (WB, PCV, FFP…). Its own short `code`, `unit_prefix` and shelf life drive preparation and
+ * labels; the catalog items that bill it are `bb_billable_items` rows. A whole-bag type (`is_whole_bag`: WB,
+ * platelet apheresis) is the bag kept as one product and cannot be combined with other components.
  */
 #[Table('bb_component_types')]
-#[Fillable([
-    'test_item_id', 'test_item_code', 'test_item_name', 'code', 'unit_prefix', 'name', 'shelf_life_hours', 'storage_condition',
-    'default_location_type', 'is_active',
-])]
+#[Fillable(['code', 'unit_prefix', 'name', 'shelf_life_hours', 'storage_condition', 'default_location_type', 'is_whole_bag', 'is_active'])]
 #[UseFactory(ComponentTypeFactory::class)]
 final class ComponentType extends Model
 {
     /** @use HasFactory<ComponentTypeFactory> */
     use HasFactory;
-
-    /**
-     * Whole blood: a bag kept as it is; its unit no is the bag no with this type's prefix.
-     */
-    public const WHOLE_BLOOD = 'WB';
 
     /**
      * @return array<string, string>
@@ -38,6 +31,7 @@ final class ComponentType extends Model
     {
         return [
             'default_location_type' => StorageLocationType::class,
+            'is_whole_bag' => 'boolean',
             'is_active' => 'boolean',
         ];
     }
@@ -45,5 +39,10 @@ final class ComponentType extends Model
     public function units(): HasMany
     {
         return $this->hasMany(Unit::class, 'component_type_id');
+    }
+
+    public function billableItems(): HasMany
+    {
+        return $this->hasMany(BillableItem::class, 'component_type_id');
     }
 }
