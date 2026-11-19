@@ -3,6 +3,7 @@
 use Modules\BloodBank\Enums\BloodBankAuditAction;
 use Modules\BloodBank\Enums\BloodBankPermission;
 use Modules\BloodBank\Enums\CaseDonorStatus;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Enums\PrintDocumentType;
 use Modules\BloodBank\Enums\SampleStatus;
@@ -164,6 +165,8 @@ it('issues nothing when a rule is broken', function (Closure $setup, Closure $pa
         fn () => ($this->payload)(['units' => [['unit_id' => $this->unit->id, 'major_result' => 'compatible', 'minor_result' => 'incompatible']]]),
         422, 'CROSSMATCH_INCOMPATIBLE',
     ],
+    'autologous PRP case' => [fn () => $this->case->update(['service' => CaseService::AutologousPrp]), fn () => ($this->payload)(), 422, 'CASE_TAKES_NO_BLOOD'],
+    'therapeutic phlebotomy case' => [fn () => $this->case->update(['service' => CaseService::TherapeuticPhlebotomy]), fn () => ($this->payload)(), 422, 'CASE_TAKES_NO_BLOOD'],
     'unit not reserved' => [fn () => $this->unit->update(['status' => UnitStatus::Available]), fn () => ($this->payload)(), 409, 'UNIT_NOT_RESERVED'],
     'unit of another case' => [fn () => $this->unit->update(['case_id' => PatientCase::factory()->create()->id]), fn () => ($this->payload)(), 422, 'UNIT_NOT_IN_CASE'],
     'unit expired' => [fn () => $this->unit->update(['expires_at' => now()->subMinute()]), fn () => ($this->payload)(), 422, 'UNIT_EXPIRED'],

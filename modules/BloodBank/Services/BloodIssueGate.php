@@ -3,12 +3,14 @@
 namespace Modules\BloodBank\Services;
 
 use Modules\BloodBank\Enums\CaseDonorStatus;
+use Modules\BloodBank\Enums\CaseService;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SampleSubject;
 use Modules\BloodBank\Enums\SerologyTest;
 use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
+use Modules\BloodBank\Exceptions\CaseTakesNoBlood;
 use Modules\BloodBank\Exceptions\UnitExpired;
 use Modules\BloodBank\Exceptions\UnitNotInCase;
 use Modules\BloodBank\Exceptions\UnitNotReserved;
@@ -27,13 +29,15 @@ use Modules\Shared\Support\Exceptions\DomainException;
 final class BloodIssueGate
 {
     /**
-     * The reason the unit cannot be issued to this case now, or null when it can. The crossmatch and post-donation
-     * vitals come with the issue itself, so they are not checked here.
+     * The reason the unit cannot be issued to this case now, or null when it can. A procedure case (Autologous PRP,
+     * Therapeutic Phlebotomy) is never issued blood, so it never gets a Compatibility Test Report. The crossmatch
+     * and post-donation vitals come with the issue itself, so they are not checked here.
      */
     public function refusal(PatientCase $case, Unit $unit): ?DomainException
     {
         return match (true) {
             $case->status !== CaseStatus::Open => new CaseNotOpen,
+            $case->service !== CaseService::Transfusion => new CaseTakesNoBlood,
             $unit->case_id !== $case->id => new UnitNotInCase,
             $unit->status !== UnitStatus::Reserved => new UnitNotReserved,
             $unit->expires_at->isPast() => new UnitExpired,

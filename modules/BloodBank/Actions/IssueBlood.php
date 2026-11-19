@@ -19,6 +19,7 @@ use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Exceptions\AmendmentReasonRequired;
 use Modules\BloodBank\Exceptions\CaseDonorNotInCase;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
+use Modules\BloodBank\Exceptions\CaseTakesNoBlood;
 use Modules\BloodBank\Exceptions\CrossmatchIncompatible;
 use Modules\BloodBank\Exceptions\PatientSampleNotCollected;
 use Modules\BloodBank\Exceptions\PostDonationVitalsRecorded;
@@ -65,6 +66,7 @@ final class IssueBlood
 
     /**
      * @throws CaseNotOpen
+     * @throws CaseTakesNoBlood
      * @throws UnitNotInCase
      * @throws UnitNotReserved
      * @throws UnitExpired
