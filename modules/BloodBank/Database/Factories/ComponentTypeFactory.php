@@ -22,16 +22,7 @@ final class ComponentTypeFactory extends Factory
             'unit_prefix' => 'B'.fake()->unique()->lexify('???'),
             'name' => fake()->words(2, true),
             'shelf_life_hours' => 24 * 35,
-            'is_whole_bag' => false,
             'is_active' => true,
         ];
-    }
-
-    /**
-     * Kept as one product (WB, platelet apheresis).
-     */
-    public function wholeBag(): self
-    {
-        return $this->state(['is_whole_bag' => true]);
     }
 }

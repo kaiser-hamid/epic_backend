@@ -14,7 +14,7 @@ use Modules\BloodBank\Enums\CollectionStatus;
 use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_collections')]
-#[Fillable(['bag_no', 'case_donor_id', 'volume_ml', 'collected_at', 'collected_by', 'approved_by', 'status', 'notes'])]
+#[Fillable(['bag_no', 'case_donor_id', 'collected_at', 'collected_by', 'approved_by', 'status', 'notes'])]
 #[UseFactory(CollectionFactory::class)]
 final class Collection extends Model
 {

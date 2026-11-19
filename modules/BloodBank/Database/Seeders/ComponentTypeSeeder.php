@@ -23,25 +23,24 @@ final class ComponentTypeSeeder extends Seeder
         $agitated = '20–24 °C, agitated';
 
         $componentTypes = [
-            ['WB', 'BH', 'Whole Blood', 35, $cold, $fridge, true],
-            ['PCV', 'BC', 'Packed Cell Volume', 35, $cold, $fridge, false],
-            ['FP', 'BP', 'Fresh Plasma', 364, $frozen, $freezer, false],
-            ['FFP', 'BF', 'Fresh Frozen Plasma', 364, $frozen, $freezer, false],
-            ['CRYO', 'BR', 'Cryoprecipitate', 364, $frozen, $freezer, false],
-            ['PLASMA', 'BS', 'Cryo Poor Plasma', 364, $frozen, $freezer, false],
-            ['PLATELET', 'BT', 'Platelet Concentrate', 5, $agitated, $agitator, false],
-            ['PRP', 'BQ', 'Platelet Rich Plasma', 5, $agitated, $agitator, false],
-            ['PA', 'BA', 'Platelet Apheresis', 5, $agitated, $agitator, true],
+            ['WB', 'BH', 'Whole Blood', 35, $cold, $fridge],
+            ['PCV', 'BC', 'Packed Cell Volume', 35, $cold, $fridge],
+            ['FP', 'BP', 'Fresh Plasma', 364, $frozen, $freezer],
+            ['FFP', 'BF', 'Fresh Frozen Plasma', 364, $frozen, $freezer],
+            ['CRYO', 'BR', 'Cryoprecipitate', 364, $frozen, $freezer],
+            ['PLASMA', 'BS', 'Cryo Poor Plasma', 364, $frozen, $freezer],
+            ['PLATELET', 'BT', 'Platelet Concentrate', 5, $agitated, $agitator],
+            ['PRP', 'BQ', 'Platelet Rich Plasma', 5, $agitated, $agitator],
+            ['PA', 'BA', 'Platelet Apheresis', 5, $agitated, $agitator],
         ];
 
-        foreach ($componentTypes as [$code, $prefix, $name, $shelfLifeDays, $storageCondition, $locationType, $isWholeBag]) {
+        foreach ($componentTypes as [$code, $prefix, $name, $shelfLifeDays, $storageCondition, $locationType]) {
             ComponentType::query()->updateOrCreate(['code' => $code], [
                 'unit_prefix' => $prefix,
                 'name' => $name,
                 'shelf_life_hours' => $shelfLifeDays * 24,
                 'storage_condition' => $storageCondition,
                 'default_location_type' => $locationType,
-                'is_whole_bag' => $isWholeBag,
                 'is_active' => true,
             ]);
         }

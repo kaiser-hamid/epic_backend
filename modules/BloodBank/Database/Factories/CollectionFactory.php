@@ -23,7 +23,6 @@ final class CollectionFactory extends Factory
         return [
             'bag_no' => fake()->unique()->numerify('B##########'),
             'case_donor_id' => CaseDonor::factory(),
-            'volume_ml' => 450,
             'collected_at' => now(),
             'collected_by' => User::factory(),
             'status' => CollectionStatus::Collected,

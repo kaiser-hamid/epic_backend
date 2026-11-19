@@ -179,7 +179,6 @@ final class BloodIssueResource extends JsonResource
             'id' => $bag->id,
             'bag_no' => $bag->bag_no,
             'status' => $bag->status->value,
-            'volume_ml' => $bag->volume_ml,
             'collected_at' => $bag->collected_at->toIso8601String(),
             'collected_by' => $this->user($bag->collector),
         ];

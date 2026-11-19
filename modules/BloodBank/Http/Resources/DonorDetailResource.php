@@ -55,7 +55,6 @@ final class DonorDetailResource extends JsonResource
             'collections' => $caseDonor->collections->map(fn (Collection $collection): array => [
                 'id' => $collection->id,
                 'bag_no' => $collection->bag_no,
-                'volume_ml' => $collection->volume_ml,
                 'status' => $collection->status->value,
                 'collected_at' => $collection->collected_at?->toIso8601String(),
             ])->all(),

@@ -31,7 +31,6 @@ final class BagResource extends JsonResource
             'id' => $collection->id,
             'bag_no' => $collection->bag_no,
             'status' => $collection->status->value,
-            'volume_ml' => $collection->volume_ml,
             'notes' => $collection->notes,
             'collected_at' => $collection->collected_at->toIso8601String(),
             'collected_by' => ['id' => $collection->collector->id, 'name' => $collection->collector->name],

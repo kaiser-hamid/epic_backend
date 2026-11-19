@@ -42,7 +42,6 @@ final class BloodCollectionResource extends JsonResource
                     'id' => $row->collection->id,
                     'bag_no' => $row->collection->bag_no,
                     'status' => $row->collection->status->value,
-                    'volume_ml' => $row->collection->volume_ml,
                     'notes' => $row->collection->notes,
                     'collected_at' => $row->collection->collected_at->toIso8601String(),
                     'collected_by' => ['id' => $row->collection->collector->id, 'name' => $row->collection->collector->name],

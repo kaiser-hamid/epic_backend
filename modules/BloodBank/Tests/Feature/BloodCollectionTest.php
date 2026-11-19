@@ -33,8 +33,8 @@ beforeEach(function () {
     );
 
     $this->types = collect([
-        ['code' => 'WB', 'unit_prefix' => 'BH', 'is_whole_bag' => true, 'default_location_type' => 'refrigerator'],
-        ['code' => 'PA', 'unit_prefix' => 'BA', 'is_whole_bag' => true, 'default_location_type' => 'refrigerator'],
+        ['code' => 'WB', 'unit_prefix' => 'BH', 'default_location_type' => 'refrigerator'],
+        ['code' => 'PA', 'unit_prefix' => 'BA', 'default_location_type' => 'refrigerator'],
         ['code' => 'PCV', 'unit_prefix' => 'BC', 'default_location_type' => 'refrigerator'],
         ['code' => 'FP', 'unit_prefix' => 'BP', 'default_location_type' => 'freezer'],
         ['code' => 'FFP', 'unit_prefix' => 'BF', 'default_location_type' => 'freezer'],
@@ -63,19 +63,19 @@ beforeEach(function () {
         'status' => CaseDonorStatus::Eligible,
     ]);
 
-    $this->collect = fn (?CaseDonor $caseDonor = null, array $payload = ['volume_ml' => 450], ?PatientCase $case = null) => signInToBranch($this, $this->phlebotomist, $this->branch)
+    $this->collect = fn (?CaseDonor $caseDonor = null, array $payload = [], ?PatientCase $case = null) => signInToBranch($this, $this->phlebotomist, $this->branch)
         ->postJson(sprintf('/api/blood-bank/cases/%d/donors/%d/collection', ($case ?? $this->case)->id, ($caseDonor ?? $this->donor)->id), $payload);
 });
 
 it('collects blood from an eligible donor into a bag with a daily bag number', function () {
     $this->travelTo(now()->setDate(2026, 11, 2));
 
-    ($this->collect)(payload: ['volume_ml' => 450, 'notes' => 'Smooth donation'])
+    ($this->collect)(payload: ['notes' => 'Smooth donation'])
         ->assertCreated()
         ->assertJsonPath('data.donors.0.case_donor_status', 'collected')
         ->assertJsonPath('data.donors.0.is_collectable', false)
         ->assertJsonPath('data.donors.0.collection.bag_no', 'B2611020001')
-        ->assertJsonPath('data.donors.0.collection.volume_ml', 450)
+        ->assertJsonPath('data.collected_units.0.volume_ml', null)
         ->assertJsonPath('data.donors.0.collection.collected_by.name', 'Salma Akter');
 
     $collection = Collection::sole();
@@ -114,16 +114,6 @@ it('refuses a closed case and another branch\'s case', function () {
         ->assertForbidden()
         ->assertJson(['code' => 'FORBIDDEN']);
 });
-
-it('rejects a missing or implausible volume', function (array $payload) {
-    ($this->collect)(payload: $payload)
-        ->assertUnprocessable()
-        ->assertJson(['code' => 'VALIDATION_FAILED'])
-        ->assertJsonValidationErrors('volume_ml');
-})->with([
-    'missing' => [[]],
-    'too much' => [['volume_ml' => 900]],
-]);
 
 it('opens the donor\'s open case of this branch for a scanned donor no, showing only that donor', function () {
     CaseDonor::factory()->create(['case_id' => $this->case->id, 'sequence_no' => 2, 'status' => CaseDonorStatus::Eligible]);
@@ -180,7 +170,6 @@ it('makes the bag into its patient and stock units at collection and returns the
     ($this->bill)(['PCV' => 1]);
 
     $response = ($this->collect)(payload: [
-        'volume_ml' => 450,
         'units' => [
             ['component_type_id' => $this->types['PCV']->id, 'volume_ml' => 250],
             ['component_type_id' => $this->types['FFP']->id, 'storage_location_id' => $this->freezer->id, 'volume_ml' => 200],
@@ -208,7 +197,7 @@ it('needs a storage location for a stock unit and accepts only the units of the 
     CaseComponent::query()->delete();
     ($this->bill)(['PCV' => 1]);
 
-    ($this->collect)(payload: ['volume_ml' => 450, 'units' => $units->call($this)])
+    ($this->collect)(payload: ['units' => $units->call($this)])
         ->assertUnprocessable()
         ->assertJsonValidationErrors($field);
 

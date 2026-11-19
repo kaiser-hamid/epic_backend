@@ -102,7 +102,6 @@ final class CollectBlood
             $collection = Collection::query()->create([
                 'bag_no' => $this->bagNumber->next(),
                 'case_donor_id' => $caseDonor->id,
-                'volume_ml' => $data->volumeMl,
                 'collected_at' => $collectedAt,
                 'collected_by' => $actor->id,
                 'status' => CollectionStatus::Collected,
@@ -122,7 +121,7 @@ final class CollectBlood
                     'component_type_id' => $componentType->id,
                     'case_id' => $planned->forPatient ? $case->id : null,
                     'blood_group' => $caseDonor->donor->blood_group,
-                    'volume_ml' => $row?->volumeMl ?? ($componentType->is_whole_bag ? $data->volumeMl : null),
+                    'volume_ml' => $row?->volumeMl,
                     'status' => $planned->forPatient ? UnitStatus::Reserved : UnitStatus::Available,
                     'storage_location_id' => $row?->storageLocationId,
                     'prepared_at' => $collectedAt,
@@ -134,7 +133,7 @@ final class CollectBlood
             }
 
             $this->auditLogger->record(BloodBankAuditAction::BloodCollected, $collection, newValues: [
-                ...$collection->only(['bag_no', 'case_donor_id', 'volume_ml', 'collected_at', 'notes']),
+                ...$collection->only(['bag_no', 'case_donor_id', 'collected_at', 'notes']),
                 'case_no' => $case->case_no,
                 'donor_no' => $caseDonor->donor->donor_no,
                 'units' => Unit::query()->whereKey(array_keys($unitPrints))->orderBy('id')
