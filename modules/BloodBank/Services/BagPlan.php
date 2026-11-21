@@ -11,14 +11,15 @@ use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Unit;
 
 /**
- * What the next donor's bag of a case is made into, decided by what the case still needs (billed and not yet
+ * Which component bags the next donor of a case is drawn into (blood goes straight into them at collection; there
+ * is no primary bag and no later preparation), decided by what the case still needs (billed and not yet
  * reserved or issued). The first recipe whose trigger the case needs is used; every component of the recipe the
  * case still needs goes to the patient, the rest to stock:
  *
- * | Case still needs        | Bag makes             | Patient          | Stock          |
+ * | Case still needs        | Bags drawn            | Patient          | Stock          |
  * |-------------------------|-----------------------|------------------|----------------|
- * | WB                      | WB (whole bag)        | WB               | —              |
- * | PA                      | PA (whole bag)        | PA               | —              |
+ * | WB                      | WB                    | WB               | —              |
+ * | PA                      | PA                    | PA               | —              |
  * | PLATELET (± PCV, FFP)   | PCV, PLATELET, FFP    | PLATELET (+ PCV) | PCV, FFP rest  |
  * | FP (± PCV)              | PCV, FP               | FP (+ PCV)       | PCV rest       |
  * | PCV or FFP              | PCV, FFP              | the needed ones  | the rest       |

@@ -6,6 +6,7 @@ use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\Collection;
 use Modules\BloodBank\Models\Donor;
 use Modules\BloodBank\Models\PatientCase;
+use Modules\BloodBank\Models\Unit;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Patient\Models\PatientMaster;
@@ -36,7 +37,7 @@ it('shows the donor\'s donations across all branches, newest first, with the pat
         'case_id' => PatientCase::factory()->create(['branch_id' => $this->branch->id, 'patient_master_id' => $donatedFor->id]),
         'status' => CaseDonorStatus::Collected,
     ]);
-    Collection::factory()->create(['case_donor_id' => $donation->id, 'bag_no' => 'BB-B-000123']);
+    Unit::factory()->create(['collection_id' => Collection::factory()->create(['case_donor_id' => $donation->id])->id, 'unit_no' => 'BC2611020001']);
     CaseDonor::factory()->create();
 
     signInToBranch($this, $this->staff, $this->branch)
@@ -46,7 +47,7 @@ it('shows the donor\'s donations across all branches, newest first, with the pat
         ->assertJsonCount(2, 'data.donations')
         ->assertJsonPath('data.donations.0.status', 'collected')
         ->assertJsonPath('data.donations.0.patient.name', 'Rahim')
-        ->assertJsonPath('data.donations.0.collections.0.bag_no', 'BB-B-000123')
+        ->assertJsonPath('data.donations.0.collections.0.units.0.unit_no', 'BC2611020001')
         ->assertJsonPath('data.donations.1.status', 'deferred')
         ->assertJsonPath('data.donations.1.deferral_reason', 'Low haemoglobin')
         ->assertJsonPath('data.donations.1.case.branch_id', $this->otherBranch->id)

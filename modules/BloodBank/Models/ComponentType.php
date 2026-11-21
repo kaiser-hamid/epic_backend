@@ -12,9 +12,9 @@ use Modules\BloodBank\Database\Factories\ComponentTypeFactory;
 use Modules\BloodBank\Enums\StorageLocationType;
 
 /**
- * A blood component (WB, PCV, FFP…). Its own short `code`, `unit_prefix` and shelf life drive preparation and
- * labels; the catalog items that bill it are `bb_billable_items` rows. What a bag is made into is decided by
- * `BagPlan` (WB and platelet apheresis keep the bag as one unit).
+ * A blood component (WB, PCV, FFP…; whole blood is a component like the others). Its own short `code`,
+ * `unit_prefix` (the start of its unit numbers) and shelf life drive the units and labels; the catalog items that
+ * bill it are `bb_billable_items` rows. Which component bags a donor is drawn into is decided by `BagPlan`.
  */
 #[Table('bb_component_types')]
 #[Fillable(['code', 'unit_prefix', 'name', 'shelf_life_hours', 'storage_condition', 'default_location_type', 'is_active'])]

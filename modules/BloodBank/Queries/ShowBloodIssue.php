@@ -69,6 +69,7 @@ final class ShowBloodIssue
             'caseDonors.samples.results.testDefinition',
             'caseDonors.samples.results.tester',
             'caseDonors.collections.collector',
+            'caseDonors.collections.units.componentType',
             'units' => fn (HasMany $query) => $query->orderBy('id'),
             'units.componentType',
             'units.storageLocation',

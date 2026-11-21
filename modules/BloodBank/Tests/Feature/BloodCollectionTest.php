@@ -67,14 +67,14 @@ beforeEach(function () {
         ->postJson(sprintf('/api/blood-bank/cases/%d/donors/%d/collection', ($case ?? $this->case)->id, ($caseDonor ?? $this->donor)->id), $payload);
 });
 
-it('collects blood from an eligible donor into a bag with a daily bag number', function () {
+it('collects blood from an eligible donor straight into unit bags numbered by a daily donation counter', function () {
     $this->travelTo(now()->setDate(2026, 11, 2));
 
     ($this->collect)(payload: ['notes' => 'Smooth donation'])
         ->assertCreated()
         ->assertJsonPath('data.donors.0.case_donor_status', 'collected')
         ->assertJsonPath('data.donors.0.is_collectable', false)
-        ->assertJsonPath('data.donors.0.collection.bag_no', 'B2611020001')
+        ->assertJsonPath('data.donors.0.collection.units.0.unit_no', 'BH2611020001')
         ->assertJsonPath('data.collected_units.0.volume_ml', null)
         ->assertJsonPath('data.donors.0.collection.collected_by.name', 'Salma Akter');
 
@@ -85,7 +85,7 @@ it('collects blood from an eligible donor into a bag with a daily bag number', f
         ->and($collection->notes)->toBe('Smooth donation')
         ->and($this->donor->refresh()->status)->toBe(CaseDonorStatus::Collected)
         ->and(AuditLog::where('action', BloodBankAuditAction::BloodCollected)->sole()->new_values)
-        ->toMatchArray(['bag_no' => 'B2611020001', 'donor_no' => 'D2611000001', 'case_no' => $this->case->case_no]);
+        ->toMatchArray(['donor_no' => 'D2611000001', 'case_no' => $this->case->case_no]);
 
     ($this->collect)()->assertStatus(409)->assertJson(['code' => 'BAG_ALREADY_COLLECTED']);
 
@@ -185,6 +185,7 @@ it('makes the bag into its patient and stock units at collection and returns the
         ->assertJsonPath('data.collected_units.1.unit_no', 'BF2611020001')
         ->assertJsonPath('data.collected_units.1.status', 'available')
         ->assertJsonPath('data.collected_units.1.storage_location.id', $this->freezer->id)
+        ->assertJsonPath('data.donors.0.collection.units.*.unit_no', ['BC2611020001', 'BF2611020001'])
         ->assertJsonPath('data.collected_units.1.label_print.is_reprint', false);
 
     expect($response->json('data.collected_units.0.label_command'))->toContain(',0,Rahim Uddin')
@@ -240,18 +241,20 @@ it('lists open cases with a donor cleared to donate and a unit still needed as p
         ->assertJsonPath('data.0.id', $this->case->id);
 });
 
-it('finds a collected bag by its barcode on the collected tab', function () {
-    Collection::factory()->create(['case_donor_id' => $this->donor->id, 'bag_no' => 'B2611020001']);
-    Collection::factory()->create([
+it('finds a donation by a unit label scan on the collected tab', function () {
+    $donation = Collection::factory()->create(['case_donor_id' => $this->donor->id]);
+    Unit::factory()->create(['collection_id' => $donation->id, 'component_type_id' => $this->types['PCV']->id, 'unit_no' => 'BC2611020001']);
+    Unit::factory()->create(['collection_id' => $donation->id, 'component_type_id' => $this->types['FFP']->id, 'unit_no' => 'BF2611020001']);
+    $other = Collection::factory()->create([
         'case_donor_id' => CaseDonor::factory()->create(['case_id' => $this->case->id, 'sequence_no' => 2]),
-        'bag_no' => 'B2611020002',
     ]);
+    Unit::factory()->create(['collection_id' => $other->id, 'component_type_id' => $this->types['PCV']->id, 'unit_no' => 'BC2611020002']);
 
     signInToBranch($this, $this->phlebotomist, $this->branch)
-        ->getJson('/api/blood-bank/blood-collections?filter[bag_no]=B2611020001')
+        ->getJson('/api/blood-bank/blood-collections?filter[unit_no]=BF2611020001')
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.bag_no', 'B2611020001')
+        ->assertJsonPath('data.0.units.*.unit_no', ['BC2611020001', 'BF2611020001'])
         ->assertJsonPath('data.0.donor.name', 'Karim Mia')
         ->assertJsonPath('data.0.patient.name', 'Rahim Uddin');
 });

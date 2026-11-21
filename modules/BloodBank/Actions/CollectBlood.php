@@ -27,20 +27,21 @@ use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\StorageLocation;
 use Modules\BloodBank\Models\Unit;
 use Modules\BloodBank\Queries\ShowBloodCollection;
-use Modules\BloodBank\Services\BagNumber;
 use Modules\BloodBank\Services\BagPlan;
 use Modules\BloodBank\Services\BloodCollectionGate;
 use Modules\BloodBank\Services\UnitMovementRecorder;
-use Modules\BloodBank\Services\UnitNumberGenerator;
+use Modules\BloodBank\Services\UnitNumber;
 use Modules\Shared\Audit\Contracts\AuditLogger;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Printing\Contracts\PrintLogger;
 
 /**
- * Collects blood from one eligible donor into a bag with its own bag no and, in the same step, makes the bag into
- * the units of its bag plan (see BagPlan): patient units are reserved for the case, stock units go to the chosen
- * storage location. Each unit is numbered from the bag no under its component prefix, carries the donor's blood
- * group, expires its shelf life after the collection and gets its first movement row. The case donor becomes
+ * Collects blood from one eligible donor straight into the component bags of its bag plan (see BagPlan; there is
+ * no primary bag and no later preparation, whole blood is just another component): patient units are reserved for
+ * the case, stock units go to the chosen storage location. The donation is one `bb_collections` row (who, when,
+ * notes) without a number of its own; its units share one daily number under their component prefixes
+ * (UnitNumber). Each unit carries the donor's blood group, expires its shelf life after the collection and gets
+ * its first movement row. The case donor becomes
  * `collected`. Every unit label is logged as printed and its printer command returned with the screen, so the
  * frontend prints them straight away (patient label for patient units, storage label for stock).
  *
@@ -51,8 +52,7 @@ final class CollectBlood
     public function __construct(
         private readonly BloodCollectionGate $collectionGate,
         private readonly BagPlan $bagPlan,
-        private readonly BagNumber $bagNumber,
-        private readonly UnitNumberGenerator $unitNumbers,
+        private readonly UnitNumber $unitNumber,
         private readonly UnitMovementRecorder $movements,
         private readonly PrintLogger $printLogger,
         private readonly AuditLogger $auditLogger,
@@ -99,8 +99,8 @@ final class CollectBlood
             $rows = $this->rowsFor($case, $plan, $data);
             $collectedAt = $data->collectedAt ?? now();
 
+            $donationDigits = $this->unitNumber->nextDonation();
             $collection = Collection::query()->create([
-                'bag_no' => $this->bagNumber->next(),
                 'case_donor_id' => $caseDonor->id,
                 'collected_at' => $collectedAt,
                 'collected_by' => $actor->id,
@@ -116,7 +116,7 @@ final class CollectBlood
 
                 $unit = Unit::query()->create([
                     'branch_id' => $case->branch_id,
-                    'unit_no' => $this->unitNumbers->forUnit($collection->bag_no, (string) $componentType->unit_prefix),
+                    'unit_no' => $this->unitNumber->forUnit($donationDigits, (string) $componentType->unit_prefix),
                     'collection_id' => $collection->id,
                     'component_type_id' => $componentType->id,
                     'case_id' => $planned->forPatient ? $case->id : null,
@@ -124,7 +124,6 @@ final class CollectBlood
                     'volume_ml' => $row?->volumeMl,
                     'status' => $planned->forPatient ? UnitStatus::Reserved : UnitStatus::Available,
                     'storage_location_id' => $row?->storageLocationId,
-                    'prepared_at' => $collectedAt,
                     'expires_at' => $collectedAt->copy()->addHours($componentType->shelf_life_hours),
                 ]);
 
@@ -133,7 +132,7 @@ final class CollectBlood
             }
 
             $this->auditLogger->record(BloodBankAuditAction::BloodCollected, $collection, newValues: [
-                ...$collection->only(['bag_no', 'case_donor_id', 'collected_at', 'notes']),
+                ...$collection->only(['case_donor_id', 'collected_at', 'notes']),
                 'case_no' => $case->case_no,
                 'donor_no' => $caseDonor->donor->donor_no,
                 'units' => Unit::query()->whereKey(array_keys($unitPrints))->orderBy('id')

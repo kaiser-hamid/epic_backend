@@ -68,7 +68,7 @@ beforeEach(function () {
         'test_definition_id' => TestDefinition::where('code', 'HBSAG')->value('id'),
         'result_value' => 'non_reactive',
     ]);
-    $this->bag = Collection::factory()->create(['case_donor_id' => $this->caseDonor->id, 'bag_no' => 'B2611030001']);
+    $this->bag = Collection::factory()->create(['case_donor_id' => $this->caseDonor->id]);
     $this->unit = Unit::factory()->create([
         'branch_id' => $this->branch->id,
         'collection_id' => $this->bag->id,
@@ -249,7 +249,7 @@ it('shows the whole case by invoice no or donor no', function (string $query) {
         ->assertJsonPath('data.patient.name', 'Rahim Uddin')
         ->assertJsonPath('data.patient_sample.blood_group', null)
         ->assertJsonPath('data.donors.0.number', 'D2611000001')
-        ->assertJsonPath('data.donors.0.bag.bag_no', 'B2611030001')
+        ->assertJsonPath('data.donors.0.bag.units.0.unit_no', $this->unit->unit_no)
         ->assertJsonPath('data.donors.0.serology.hbsag', 'non_reactive')
         ->assertJsonPath('data.donors.0.examination.post', null)
         ->assertJsonPath('data.donors.0.needs_post_vitals', true)

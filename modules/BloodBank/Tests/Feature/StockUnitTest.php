@@ -56,7 +56,7 @@ beforeEach(function () {
     ]);
     $this->unit = Unit::factory()->create([
         'branch_id' => $this->branch->id,
-        'collection_id' => Collection::factory()->create(['case_donor_id' => $this->originalDonor->id, 'bag_no' => 'B2611100001'])->id,
+        'collection_id' => Collection::factory()->create(['case_donor_id' => $this->originalDonor->id])->id,
         'component_type_id' => $this->pcv->id,
         'status' => UnitStatus::Available,
         'storage_location_id' => $this->fridge->id,

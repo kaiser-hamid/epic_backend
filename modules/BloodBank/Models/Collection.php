@@ -14,7 +14,11 @@ use Modules\BloodBank\Enums\CollectionStatus;
 use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_collections')]
-#[Fillable(['bag_no', 'case_donor_id', 'collected_at', 'collected_by', 'approved_by', 'status', 'notes'])]
+/**
+ * One donation: blood drawn from a case donor straight into the component bags (its `units`). It has no number of
+ * its own; the units carry the numbers.
+ */
+#[Fillable(['case_donor_id', 'collected_at', 'collected_by', 'approved_by', 'status', 'notes'])]
 #[UseFactory(CollectionFactory::class)]
 final class Collection extends Model
 {

@@ -25,14 +25,14 @@ final class DonorDetailResource extends JsonResource
 
         return [
             ...DonorResource::make($donor)->toArray($request),
-            'donations' => $donor->caseDonors->map(fn (CaseDonor $caseDonor): array => $this->donation($caseDonor))->all(),
+            'donations' => $donor->caseDonors->map(fn (CaseDonor $caseDonor): array => $this->donation($caseDonor, $request))->all(),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function donation(CaseDonor $caseDonor): array
+    private function donation(CaseDonor $caseDonor, Request $request): array
     {
         $case = $caseDonor->patientCase;
 
@@ -54,7 +54,7 @@ final class DonorDetailResource extends JsonResource
             'patient' => ($this->resource->patients[$case->patient_master_id] ?? null)?->toArray(),
             'collections' => $caseDonor->collections->map(fn (Collection $collection): array => [
                 'id' => $collection->id,
-                'bag_no' => $collection->bag_no,
+                'units' => DonationUnitResource::forCollection($collection, $request),
                 'status' => $collection->status->value,
                 'collected_at' => $collection->collected_at?->toIso8601String(),
             ])->all(),

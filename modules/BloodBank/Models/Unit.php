@@ -14,7 +14,11 @@ use Modules\BloodBank\Enums\UnitStatus;
 use Modules\Shared\Patient\Enums\BloodGroup;
 
 #[Table('bb_units')]
-#[Fillable(['branch_id', 'unit_no', 'collection_id', 'parent_unit_id', 'component_type_id', 'blood_group', 'volume_ml', 'status', 'storage_location_id', 'case_id', 'prepared_at', 'expires_at'])]
+/**
+ * One component bag (WB, PCV, FFP…), filled straight from the donor at collection: there is no primary bag and no
+ * later preparation. Its `unit_no` is the number on its label.
+ */
+#[Fillable(['branch_id', 'unit_no', 'collection_id', 'component_type_id', 'blood_group', 'volume_ml', 'status', 'storage_location_id', 'case_id', 'expires_at'])]
 #[UseFactory(UnitFactory::class)]
 final class Unit extends Model
 {
@@ -29,7 +33,6 @@ final class Unit extends Model
         return [
             'blood_group' => BloodGroup::class,
             'status' => UnitStatus::class,
-            'prepared_at' => 'datetime',
             'expires_at' => 'datetime',
         ];
     }
@@ -47,11 +50,6 @@ final class Unit extends Model
         return $this->belongsTo(PatientCase::class, 'case_id');
     }
 
-    public function parentUnit(): BelongsTo
-    {
-        return $this->belongsTo(Unit::class, 'parent_unit_id');
-    }
-
     public function componentType(): BelongsTo
     {
         return $this->belongsTo(ComponentType::class, 'component_type_id');
@@ -60,11 +58,6 @@ final class Unit extends Model
     public function storageLocation(): BelongsTo
     {
         return $this->belongsTo(StorageLocation::class, 'storage_location_id');
-    }
-
-    public function childUnits(): HasMany
-    {
-        return $this->hasMany(Unit::class, 'parent_unit_id');
     }
 
     public function crossmatches(): HasMany

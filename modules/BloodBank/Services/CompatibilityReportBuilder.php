@@ -84,7 +84,7 @@ final class CompatibilityReportBuilder
                 'result_date' => ($crossmatch->reviewed_at ?? $crossmatch->tested_at)->format(self::DATE),
                 'referred_by' => $invoice === null ? null : ($invoice->isSelfReferral ? 'Self' : $invoice->referredBy),
                 'transfusion_reason' => $case->transfusion_reason,
-                'bag_no' => $collection->bag_no,
+                'unit_no' => $unit->unit_no,
                 'unit_sequence' => $sequence[$unit->id] ?? null,
                 'component' => $unit->componentType->code,
                 'collected_at' => $collection->collected_at->format(self::DATE),

@@ -74,7 +74,7 @@ final class BloodIssueResource extends JsonResource
                 'assessed_by' => $this->user($row->caseDonor->assessor),
                 'examination' => $this->examination($row->caseDonor->screening),
                 'serology' => $this->serology($row->sample),
-                'bag' => $this->bag($row->bag),
+                'bag' => $this->bag($row->bag, $request),
                 'needs_post_vitals' => $row->needsPostVitals,
             ], $view->donors),
             'units' => array_map(fn (BloodIssueUnitRow $row): array => [
@@ -176,11 +176,11 @@ final class BloodIssueResource extends JsonResource
     /**
      * @return array<string, mixed>|null
      */
-    private function bag(?Collection $bag): ?array
+    private function bag(?Collection $bag, Request $request): ?array
     {
         return $bag === null ? null : [
             'id' => $bag->id,
-            'bag_no' => $bag->bag_no,
+            'units' => DonationUnitResource::forCollection($bag, $request),
             'status' => $bag->status->value,
             'collected_at' => $bag->collected_at->toIso8601String(),
             'collected_by' => $this->user($bag->collector),

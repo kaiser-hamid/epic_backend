@@ -21,6 +21,7 @@ final class ShowDonor
             'caseDonors' => fn (HasMany $query) => $query->whereHas('patientCase')->latest()->orderByDesc('id'),
             'caseDonors.patientCase',
             'caseDonors.collections' => fn (HasMany $query) => $query->orderBy('collected_at'),
+            'caseDonors.collections.units.componentType',
         ]);
 
         return new DonorView(

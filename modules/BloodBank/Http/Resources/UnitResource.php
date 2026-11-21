@@ -7,8 +7,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\BloodBank\Data\UnitView;
 
 /**
- * A blood unit with its component, storage location and source bag; also the content of a unit label (the
- * barcode is `unit_no`). `bag_case_id` is the case the bag was collected for (labels are printed through it).
+ * A blood unit with its component, storage location and donation (`collection_id`); also the content of a unit
+ * label (the barcode is `unit_no`). `bag_case_id` is the case the blood was collected for (labels are printed
+ * through it).
  * `reserved_for` is the case and patient the unit is reserved for or issued to, null for stock. `screening` (the donor's screening results), `label_print` and `label_command` (the barcode printer
  * command to send to the print service) are present only in the response to a label print.
  *
@@ -43,11 +44,10 @@ final class UnitResource extends JsonResource
                 'code' => $unit->storageLocation->code,
                 'name' => $unit->storageLocation->name,
             ],
-            'bag_no' => $collection->bag_no,
+            'collection_id' => $collection->id,
             'bag_case_id' => $collection->caseDonor->case_id,
             'donor_no' => $collection->caseDonor->donor->donor_no,
             'collected_at' => $collection->collected_at->toIso8601String(),
-            'prepared_at' => $unit->prepared_at->toIso8601String(),
             'expires_at' => $unit->expires_at->toIso8601String(),
             'reserved_for' => $unit->patientCase === null ? null : [
                 'case_id' => $unit->patientCase->id,

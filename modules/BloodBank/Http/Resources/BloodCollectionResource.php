@@ -14,7 +14,8 @@ use Modules\BloodBank\Enums\SampleSubject;
 /**
  * The blood collection screen: the information panel (`case`, `patient`, `invoice`) and one row per case donor
  * in sequence order. "Collect" is enabled while `is_collectable` (the donor is `eligible`, has no bag, and the case
- * still needs something). `collection` is the donor's bag, null until collected. `bag_plan` is what the next bag
+ * still needs something). `collection` is the donor's donation, null until collected, with its `units` (the unit
+ * nos printed on the labels; a donation has no number of its own). `bag_plan` is what the next donation
  * is made into: patient rows first (`for_patient`), then stock rows; `needs_storage_location` marks the rows that
  * need a shelf, pre-filled from `default_location_type`. After a collect, `collected_collection_id` is the bag
  * just drawn and `collected_units` its units with `label_command`, logged as printed and sent to the printer.
@@ -44,11 +45,11 @@ final class BloodCollectionResource extends JsonResource
                 'can_reserve_stock_unit' => $row->canReserveStockUnit,
                 'collection' => $row->collection === null ? null : [
                     'id' => $row->collection->id,
-                    'bag_no' => $row->collection->bag_no,
                     'status' => $row->collection->status->value,
                     'notes' => $row->collection->notes,
                     'collected_at' => $row->collection->collected_at->toIso8601String(),
                     'collected_by' => ['id' => $row->collection->collector->id, 'name' => $row->collection->collector->name],
+                    'units' => DonationUnitResource::forCollection($row->collection, $request),
                 ],
             ], $this->resource->donors),
             'bag_plan' => array_map(fn (PlannedUnit $planned): array => [

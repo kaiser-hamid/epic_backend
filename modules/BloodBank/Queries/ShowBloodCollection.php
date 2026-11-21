@@ -85,6 +85,7 @@ final class ShowBloodCollection
             'caseDonors.unit.componentType',
             'caseDonors.unit.storageLocation',
             'caseDonors.collections.collector',
+            'caseDonors.collections.units.componentType',
             'phlebotomy.performer',
         ]);
 

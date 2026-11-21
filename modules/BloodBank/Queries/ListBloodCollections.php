@@ -16,10 +16,10 @@ use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 /**
- * Blood bags of the session branch's cases: the "Collected" tab, and a bag barcode scan via `filter[bag_no]`.
- * Filters: `filter[bag_no]`, `filter[case_no]`, `filter[donor_no]`, `filter[status]`, `filter[collected_from]` /
- * `filter[collected_to]` (Y-m-d, inclusive). Sorts: `collected_at` (default newest first), `bag_no`. `per_page`
- * up to 100.
+ * Donations of the session branch's cases: the "Collected" tab, and a unit label scan via `filter[unit_no]` (finds
+ * the donation the unit was drawn in). Filters: `filter[unit_no]`, `filter[case_no]`, `filter[donor_no]`,
+ * `filter[status]`, `filter[collected_from]` / `filter[collected_to]` (Y-m-d, inclusive). Sort: `collected_at`
+ * (default newest first). `per_page` up to 100.
  */
 final class ListBloodCollections
 {
@@ -35,11 +35,12 @@ final class ListBloodCollections
     {
         $baseQuery = Collection::query()
             ->whereHas('caseDonor.patientCase', fn (Builder $query) => $query->where('branch_id', $this->currentBranch->id()))
-            ->with(['caseDonor.patientCase', 'caseDonor.donor', 'collector']);
+            ->with(['caseDonor.patientCase', 'caseDonor.donor', 'collector', 'units.componentType']);
 
         $collections = QueryBuilder::for($baseQuery, $request)
             ->allowedFilters(
-                AllowedFilter::exact('bag_no')->delimiter(''),
+                AllowedFilter::callback('unit_no', fn (Builder $query, string $unitNo) => $query
+                    ->whereHas('units', fn (Builder $query) => $query->where('unit_no', $unitNo)))->delimiter(''),
                 AllowedFilter::callback('case_no', fn (Builder $query, string $caseNo) => $query
                     ->whereHas('caseDonor.patientCase', fn (Builder $query) => $query->where('case_no', $caseNo)))->delimiter(''),
                 AllowedFilter::callback('donor_no', fn (Builder $query, string $donorNo) => $query
@@ -50,7 +51,7 @@ final class ListBloodCollections
                 AllowedFilter::callback('collected_to', fn (Builder $query, string $date) => $query
                     ->where('collected_at', '<=', $this->date('collected_to', $date)->endOfDay())),
             )
-            ->allowedSorts('collected_at', 'bag_no')
+            ->allowedSorts('collected_at')
             ->defaultSort('-collected_at')
             ->paginate(min(max($request->integer('per_page', 25), 1), 100))
             ->withQueryString();

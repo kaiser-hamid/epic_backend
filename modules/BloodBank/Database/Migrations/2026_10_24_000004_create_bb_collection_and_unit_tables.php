@@ -32,7 +32,6 @@ return new class extends Migration
 
         Schema::create('bb_collections', function (Blueprint $table) {
             $table->id();
-            $table->string('bag_no')->unique();
             $table->foreignId('case_donor_id')->constrained('bb_case_donors');
             $table->timestampTz('collected_at');
             $table->foreignId('collected_by')->constrained('users');
@@ -47,14 +46,12 @@ return new class extends Migration
             $table->id();
             $table->string('unit_no')->unique();
             $table->foreignId('collection_id')->constrained('bb_collections');
-            $table->foreignId('parent_unit_id')->nullable()->constrained('bb_units');
             $table->foreignId('component_type_id')->constrained('bb_component_types');
             $table->foreignId('case_id')->nullable()->index()->constrained('bb_cases')->comment('Assigning to patient case');
             $table->string('blood_group')->nullable()->index();
             $table->unsignedSmallInteger('volume_ml')->nullable();
             $table->string('status');
             $table->foreignId('storage_location_id')->nullable()->constrained('bb_storage_locations');
-            $table->timestampTz('prepared_at');
             $table->timestampTz('expires_at');
             $table->timestampsTz();
 

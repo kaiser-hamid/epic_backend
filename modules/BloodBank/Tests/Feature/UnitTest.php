@@ -45,12 +45,13 @@ beforeEach(function () {
         ]),
         'status' => CaseDonorStatus::Collected,
     ]);
-    $this->bag = Collection::factory()->create(['case_donor_id' => $this->caseDonor->id, 'bag_no' => 'B2611020001']);
+    $this->bag = Collection::factory()->create(['case_donor_id' => $this->caseDonor->id]);
 
     $this->unit = fn (ComponentType $type, bool $forPatient) => Unit::factory()->create([
         'branch_id' => $this->branch->id,
         'collection_id' => $this->bag->id,
         'component_type_id' => $type->id,
+        'unit_no' => $type->unit_prefix.'2611020001',
         'case_id' => $forPatient ? $this->case->id : null,
         'blood_group' => BloodGroup::BPositive,
         'status' => $forPatient ? UnitStatus::Reserved : UnitStatus::Available,

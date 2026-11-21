@@ -89,7 +89,7 @@
 
     <table class="bag">
         <tr>
-            <td style="width: 33.6%;">Blood Bag No.: {{ $page['bag_no'] }}</td>
+            <td style="width: 33.6%;">Blood Bag No.: {{ $page['unit_no'] }}</td>
             <td style="width: 28.4%;">Unit: {{ $page['unit_sequence'] }}</td>
             <td style="width: 38%;">Component: {{ $page['component'] }}</td>
         </tr>

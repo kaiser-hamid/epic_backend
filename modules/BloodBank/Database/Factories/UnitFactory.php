@@ -7,7 +7,6 @@ use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Models\Collection;
 use Modules\BloodBank\Models\ComponentType;
 use Modules\BloodBank\Models\Unit;
-use Modules\BloodBank\Services\UnitNumberGenerator;
 use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Patient\Enums\BloodGroup;
 
@@ -19,7 +18,7 @@ final class UnitFactory extends Factory
     protected $model = Unit::class;
 
     /**
-     * A source unit whose unit number is its collection's bag number under the component type's prefix.
+     * A component bag numbered as UnitNumber does: the component type's prefix, then the donation's digits.
      *
      * @return array<string, mixed>
      */
@@ -29,31 +28,12 @@ final class UnitFactory extends Factory
             'branch_id' => Branch::factory(),
             'collection_id' => Collection::factory(),
             'component_type_id' => ComponentType::factory(),
-            'unit_no' => fn (array $attributes): string => (new UnitNumberGenerator)->forUnit(
-                Collection::findOrFail($attributes['collection_id'])->bag_no,
-                ComponentType::findOrFail($attributes['component_type_id'])->unit_prefix,
-            ),
+            'unit_no' => fn (array $attributes): string => ComponentType::findOrFail($attributes['component_type_id'])->unit_prefix
+                .fake()->unique()->numerify('##########'),
             'blood_group' => fake()->randomElement(BloodGroup::cases()),
             'volume_ml' => 350,
             'status' => UnitStatus::Available,
-            'prepared_at' => now(),
             'expires_at' => now()->addDays(35),
         ];
-    }
-
-    /**
-     * A component prepared from the given source unit, numbered as bag number under the component type's prefix.
-     */
-    public function component(Unit $parent, ?int $splitNo = null): self
-    {
-        return $this->state(fn (): array => [
-            'parent_unit_id' => $parent->id,
-            'collection_id' => $parent->collection_id,
-            'unit_no' => fn (array $attributes): string => (new UnitNumberGenerator)->forUnit(
-                Collection::findOrFail($parent->collection_id)->bag_no,
-                ComponentType::findOrFail($attributes['component_type_id'])->unit_prefix,
-                $splitNo,
-            ),
-        ]);
     }
 }

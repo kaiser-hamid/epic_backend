@@ -7,9 +7,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\BloodBank\Data\BagView;
 
 /**
- * A blood bag with its donor, case and patient; also the content of a printed bag label. The label barcodes are
- * `bag_no`, `donor.donor_no` and `case.case_no`. Ages are in years. `label_print` and `label_command` (the
- * barcode printer command to send to the print service) are present only in the response to a label print.
+ * A donation (a row of the Collected tab) with its donor, case and patient, and its `units`: the component bags
+ * filled at collection, whose unit nos are the numbers on the labels (a donation has none of its own). Ages are in
+ * years.
  *
  * @property-read BagView $resource
  */
@@ -25,11 +25,10 @@ final class BagResource extends JsonResource
         $donor = $caseDonor->donor;
         $case = $caseDonor->patientCase;
         $patient = $this->resource->patient;
-        $labelPrint = $this->resource->labelPrint;
 
         return [
             'id' => $collection->id,
-            'bag_no' => $collection->bag_no,
+            'units' => DonationUnitResource::forCollection($collection, $request),
             'status' => $collection->status->value,
             'notes' => $collection->notes,
             'collected_at' => $collection->collected_at->toIso8601String(),
@@ -57,12 +56,6 @@ final class BagResource extends JsonResource
                 'gender' => $patient->gender?->value,
                 'blood_group' => $patient->bloodGroup?->value,
             ],
-            'label_print' => $this->when($labelPrint !== null, fn () => [
-                'is_reprint' => $labelPrint->is_reprint,
-                'reprint_reason' => $labelPrint->reprint_reason,
-                'printed_at' => $labelPrint->printed_at->toIso8601String(),
-            ]),
-            'label_command' => $this->when($labelPrint !== null, $this->resource->labelCommand),
         ];
     }
 }

@@ -53,11 +53,11 @@ sh_patient_master ─┐
                                          │   status: registered → fit (physical exam) → eligible (serology) → collected; deferred at either check
                                          ├─> bb_donor_screenings (weight, height, Hb, pre/post vitals)
                                          ├─> bb_samples (subject = donor) ──> bb_test_results (serology)
-                                         └─> bb_collections (one bag, bag_no)
-                                                └─> bb_units (whole blood, then components via parent_unit_id)
+                                         └─> bb_collections (one donation, no number of its own)
+                                                └─> bb_units (the component bags filled straight from the donor: WB, PCV, FFP…)
                                                        └─> bb_unit_movements (every status / location change, with case_id)
 
-sh_print_logs     ← every label / report print, for samples, bags, units, cases
+sh_print_logs     ← every label / report print, for samples, units, cases
 bb_consumable_*   ← separate stock ledger for bags, reagents, etc.
 ```
 
@@ -193,7 +193,7 @@ The patient calls and asks for stored blood (e.g. 2 × PCV); if the bank has it,
 2. **Donor Examination**: a stock row is never examined (`can_examine = false`, `EXAMINATION_LOCKED`) and never pending.
 3. **Donor Serology** on the bag sample, the same form and rules as a donor (results versioned, reactive blocks Accept, `bb_donors.blood_group` overwritten; `bb_units.blood_group` is left as labelled). The unit follows the decision (`RecordDonorSerology::moveStockUnit`): Defer releases it (audit `bb.stock_unit.released`, movement row with the case), Defer → Accept takes it again if it is still `available` and not expired (`UNIT_NOT_AVAILABLE` / `UNIT_EXPIRED` otherwise). Correctable until the patient label is printed.
 4. **Print patient label** → `POST cases/{case}/donors/{caseDonor}/stock-unit` (`ReserveStockUnit`, `bb.collection.collect`): optional `storage_location_id` (an active location of the branch). Unit `held` → `reserved` (movement, audit `bb.stock_unit.reserved`), row → `collected`, the patient label (`bb_bag_label.ezpx`, printed over the old storage label) logged as `bb.patient_label` (its first print: the storage label is a separate document). Returns the Blood Collection screen with `collected_units` (201). Errors: `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `CASE_DONOR_NOT_STOCK_UNIT` (a real donor), `DONOR_NOT_ELIGIBLE`, `DONOR_DEFERRED`, `BAG_ALREADY_COLLECTED`, `UNIT_NOT_HELD`, `UNIT_EXPIRED`. Collect on a stock row is refused with `CASE_DONOR_IS_STOCK_UNIT`. The screen sends `can_reserve_stock_unit` per row; the Pending tab also lists open cases with an `eligible` stock row.
-5. **Blood Issue** is unchanged. The report's donor, bag no, collection date and collected-by come from the original collection; its screening tests are the stock row's re-test, falling back per test to the original donor's (`DonorScreeningResults::forRetestedUnit`). Post-donation vitals are only taken for this case's own donors.
+5. **Blood Issue** is unchanged. The report's donor, collection date and collected-by come from the original collection (its Blood Bag No. is the unit no); its screening tests are the stock row's re-test, falling back per test to the original donor's (`DonorScreeningResults::forRetestedUnit`). Post-donation vitals are only taken for this case's own donors.
 6. If the bag is deferred, the patient brings a donor, another stock bag is taken, or the case is closed by hand; **Close case** sends any unit still `held` for the case back to `available` (reason "Case closed: …").
 
 Every screen's donor row carries `source` and `stock_unit` (unit no, status, component, blood group, expiry, location). `BagPlan` counts `held` units with reserved / issued ones, so a donor's next bag is not planned for a component a stock bag already covers.
@@ -233,13 +233,13 @@ Donor Serology APIs (permissions `bb.serology.view` / `bb.serology.record`, bran
 
 Serology rules (`DonorSerologyGate`): the case is `open` and the donor belongs to it; the donor is `fit`, or already decided at serology (`eligible`, or `deferred` with saved results) for a correction; the donor sample is collected (a rejected sample does not count). Switching the own Accept / Defer needs no amendment reason. Audit: `bb.donor.serology_recorded` (first save), `bb.donor.serology_amended` (old/new values, amendment reason), on `bb.case_donor`. Error codes: `CASE_NOT_FOUND`, `DONOR_SAMPLE_NOT_FOUND`, `CASE_NOT_OPEN`, `CASE_DONOR_NOT_IN_CASE`, `DONOR_NOT_FIT` (still `registered`), `DONOR_DEFERRED` (deferred at the physical exam), `DONOR_SAMPLE_NOT_COLLECTED`, `REACTIVE_DONOR_NOT_ACCEPTABLE`, `AMENDMENT_REASON_REQUIRED`, `SEROLOGY_LOCKED` (409, bag collected).
 
-### 6. Collection (the bag and its units, one step)
+### 6. Collection (straight into the component bags)
 
-Collect draws the bag and makes it into units in the same transaction (`CollectBlood`); there is no separate preparation step. Stock is per branch: `bb_units.branch_id` comes from the case, and each branch has its own `bb_storage_locations`.
+The donor is connected to the component bags (e.g. a PCV and an FP bag) and the blood is drawn straight into them: there is no primary bag, no main number and no later preparation, and whole blood is just one more component. Collect records it in one transaction (`CollectBlood`). Stock is per branch: `bb_units.branch_id` comes from the case, and each branch has its own `bb_storage_locations`.
 
-1. Draw blood from an eligible donor → `bb_collections`: `bag_no` (`B{yyMMdd}{0001}`, global, daily reset), `case_donor_id`, `collected_at/by`, `approved_by` (not set yet), `status = collected`, `notes`. One bag per case donor.
+1. Draw blood from an eligible donor → `bb_collections` (the donation, no number): `case_donor_id`, `collected_at/by`, `approved_by` (not set yet), `status = collected`, `notes`. One donation per case donor.
 2. `bb_case_donors.status = collected`. Physical exam and serology are locked from here on.
-3. The bag is made into units by its **bag plan** (`BagPlan`), chosen from what the case still needs (billed quantity in `bb_case_components` minus units already reserved or issued to the case). The first recipe that makes something still needed wins:
+3. The component bags drawn are the **bag plan** (`BagPlan`), chosen from what the case still needs (billed quantity in `bb_case_components` minus units already reserved or issued to the case). The first recipe that makes something still needed wins:
 
    | Case still needs | Patient | Storage |
    |---|---|---|
@@ -254,7 +254,7 @@ Collect draws the bag and makes it into units in the same transaction (`CollectB
    | CRYO / PRP / PLASMA | that component | — |
 
    A component goes to the patient when the case still needs it; the rest goes to stock. Inactive or missing component types are left out. A case that needs nothing more has an empty plan: no donor row is collectable and Collect is refused (`CASE_NEEDS_NOTHING_MORE`).
-4. One `bb_units` row per plan row: `unit_no` = the bag no under the component type's `unit_prefix` (`B2611020001` → `BC2611020001` for PCV; WB `BH`, PCV `BC`, FP `BP`, FFP `BF`, CRYO `BR`, PLASMA `BS`, PLATELET `BT`, PRP `BQ`, PA `BA`), `branch_id`, `collection_id`, `component_type_id`, `blood_group` (the donor's, from serology), `volume_ml` (the row's ml, optional; the only volume recorded, the bag has none), `prepared_at = collected_at`, `expires_at = collected_at + shelf life`, `parent_unit_id = null` (kept for splitting a unit later).
+4. One `bb_units` row per plan row: `unit_no` = the component type's `unit_prefix` + `{yyMMdd}{0001}` (`UnitNumber`: one daily counter `bb.donation`, global, taken once per donation, so the units drawn together share the digits: `BC2611020001`, `BF2611020001`; WB `BH`, PCV `BC`, FP `BP`, FFP `BF`, CRYO `BR`, PLASMA `BS`, PLATELET `BT`, PRP `BQ`, PA `BA`), `branch_id`, `collection_id`, `component_type_id`, `blood_group` (the donor's, from serology), `volume_ml` (the row's ml, optional), `expires_at = collected_at + shelf life`.
    - Patient row → `status = reserved`, `case_id` = the case.
    - Storage row → `status = available`, `case_id = null`, `storage_location_id` required (any active location of the branch).
    - A case that keeps its units in storage (`keeps_units_in_storage`, SWPF01) also needs a location for its patient rows.
@@ -262,7 +262,7 @@ Collect draws the bag and makes it into units in the same transaction (`CollectB
 6. A label per unit → `sh_print_logs` (`bb.patient_label` for a reserved unit, `bb.storage_label` for stock; `printable_type = bb.unit`), logged by Collect itself; the response carries the label commands, and the frontend sends them to the label printer. Any later print is a reprint (reason required) from the Units menu.
 7. About 15 minutes after donation → fill the post-donation columns on the same `bb_donor_screenings` row: `post_pulse_bpm`, `post_bp_systolic` / `post_bp_diastolic`, `post_temperature_f`, `post_recorded_by/at`. Optionally entered on the Blood Issue form (step 9) if not recorded yet; blood can be issued without them, and recorded vitals are never overwritten.
 8. Bag used up → `bb_consumable_transactions` (`type = issued`), see step 10. (Later.)
-9. Every barcode scan looks up `sample_no`, `bag_no` or `unit_no`; there are no barcode columns.
+9. Every barcode scan looks up `sample_no` or `unit_no`; there are no barcode columns.
 
 Blood Collection APIs (permissions `bb.collection.view` / `bb.collection.collect`, branch scoped):
 
@@ -273,7 +273,7 @@ Blood Collection APIs (permissions `bb.collection.view` / `bb.collection.collect
 | `POST cases/{case}/donors/{caseDonor}/collection` | "Collect and Print": optional `notes`, `collected_at`, and `units: [{component_type_id, storage_location_id?, volume_ml?}]` (max 6; one row per plan row; ml 1–600). Returns the screen plus `collected_collection_id` and `collected_units` (each unit with `label_print` and `label_command`) (201). |
 | `GET blood-collection/pending` | Pending tab: open cases with an `eligible` donor (cleared to donate, no bag yet) that still need a unit (`BagPlan::whereNeedsUnits`: a billed component not yet all held, reserved or issued; a case holding everything is left out), open cases with an `eligible` stock row (patient label not printed, step 4a), and open Therapeutic Phlebotomy cases. |
 | `POST cases/{case}/donors/{caseDonor}/stock-unit` | "Print patient label" for a stock row (step 4a). |
-| `GET blood-collections` | Collected tab and bag barcode scan (`filter[bag_no]`, `filter[case_no]`, `filter[donor_no]`, `filter[status]`, `filter[collected_from/to]`). |
+| `GET blood-collections` | Collected tab (one row per donation, with its `units`) and unit label scan (`filter[unit_no]`: the donation that unit was drawn in, `filter[case_no]`, `filter[donor_no]`, `filter[status]`, `filter[collected_from/to]`). |
 
 **Therapeutic Phlebotomy** (no donor, no bag): the case is on the Blood Collection pending list, and the screen sends `can_record_phlebotomy` (open TP case) and `phlebotomy`. "Mark done" → `POST cases/{case}/therapeutic-phlebotomy` (`RecordTherapeuticPhlebotomy`, `bb.phlebotomy.record`): `volume_ml` (50–1000), optional `pre` / `post` vitals (`pulse_bpm`, `bp_systolic`, `bp_diastolic` < systolic, `temperature_f` with 1 decimal; all four or none), `notes`, `performed_at`. Writes one `bb_phlebotomies` row per case (`performed_by/at`), audit `bb.phlebotomy.recorded` on `bb.phlebotomy`, and closes the case (`via = therapeutic_phlebotomy`). Error codes: `NOT_A_PHLEBOTOMY_CASE`, `CASE_NOT_OPEN`.
 
@@ -285,7 +285,7 @@ Units are made at collection (step 6). The **Units** menu (permissions `bb.unit.
 
 | API | Screen |
 |---|---|
-| `GET units` | Units list and unit barcode scan (`filter[unit_no]`, `filter[bag_no]`, `filter[case_no]`, `filter[component_type_id]`, `filter[blood_group]`, `filter[status]`, `filter[storage_location_id]`, `filter[expires_before]`), soonest expiry first. Each unit has `bag_case_id`, the case its bag was collected for. |
+| `GET units` | Units list and unit barcode scan (`filter[unit_no]`, `filter[case_no]`, `filter[component_type_id]`, `filter[blood_group]`, `filter[status]`, `filter[storage_location_id]`, `filter[expires_before]`), soonest expiry first. Each unit has `collection_id` (its donation) and `bag_case_id`, the case its blood was collected for. |
 | `POST cases/{case}/unit-labels` | "Label": `unit_ids` (units from this case's bags, or held / reserved / issued for this case), `reprint_reason` (required for a reprint). Returns the label content per unit with `label_command`. The Units list calls it with the unit's `bag_case_id`. |
 | `GET storage-locations` | Location picker: the branch's active locations. |
 
@@ -311,7 +311,7 @@ Where each part of the report comes from (nothing is copied):
 | Patient name, gender, age, contact | `sh_patient_master` |
 | Invoice, invoice date, Ref. by | `sh_billing`, `sh_billing_referrals` |
 | Result date | `bb_crossmatches.reviewed_at` (or `tested_at`) |
-| Blood Bag No., component, date of collection, expiry, collected by | `bb_units` → `bb_collections` (`bag_no`, `collected_at`, `collected_by`), `bb_component_types`, `bb_units.expires_at` |
+| Blood Bag No., component, date of collection, expiry, collected by | `bb_units.unit_no` (the number on the bag's label), `bb_units` → `bb_collections` (`collected_at`, `collected_by`), `bb_component_types`, `bb_units.expires_at` |
 | Unit | **Unconfirmed** (see Open questions). Built as: the unit's place in the case's issue order (1, 2, …), from the order of the current crossmatches of issued units; nothing stored |
 | Patient ABO, Rh | patient sample's `bb_test_results` |
 | Cause of transfusion | `bb_cases.transfusion_reason` |
@@ -427,6 +427,7 @@ What each migration added after the first schema (2026-10-24), newest first. Run
 
 | Date | Migration | Change |
 |---|---|---|
+| 2026-11-21 | edited in place: `create_bb_collection_and_unit_tables` | `bb_collections.bag_no`, `bb_units.parent_unit_id` and `bb_units.prepared_at` removed: blood goes straight into the component bags, so there is no main number, no split and no preparation. Unit numbers come from the `bb.donation` counter (was `bb.bag`). |
 | 2026-11-21 | edited in place: `create_bb_case_component_and_crossmatch_tables` | `bb_crossmatches.major_result` / `minor_result` nullable: a side outside the component's crossmatch scope is null. |
 | 2026-11-21 | `add_stock_source_to_bb_case_donors_table` | `bb_case_donors.source` (`donor` / `stock`, default `donor`), `unit_id` (FK `bb_units`), check `source = stock` ⇔ `unit_id` set; `unique(case_id, donor_id)` becomes a partial index `WHERE source = 'donor'`, plus `unique(case_id, unit_id)`. `sh_print_logs.document_type` `bb.component_label` split into `bb.storage_label` / `bb.patient_label` (no data migration: dev DB fresh). |
 | 2026-11-19 | edited in place: `create_bb_collection_and_unit_tables` | `bb_collections.volume_ml` removed: only each unit records a volume (optional ml per unit at Collect). |
@@ -460,7 +461,8 @@ What each migration added after the first schema (2026-10-24), newest first. Run
 - `case_no` stays the case identifier and `invoice_no` a search key, but since 2026-11-09 every case is opened from exactly one bill with Blood Bank items (`bb_cases.billing_id` required and unique; since 2026-11-17 that bill may also carry other items). Earlier decision "a case can exist before billing" is superseded. A wrong bill can't be edited or cancelled yet; it means a new bill (and case).
 - A case whose bill has no component item (only services) opens with no `bb_case_components` rows and is closed by hand ("Close case"; list filter `needs_closing`). Map every component item in `bb_billable_items`.
 - One bill, one service (2026-11-19): Autologous PRP and Therapeutic Phlebotomy are billed alone; extras go with anything. PRP and CRYO / Cryo Poor Plasma give the patient their unit and store nothing; FP is given at once and labelled FP, FFP is a processed (stored) component; Platelet 4:1 is a platelet case that allows 4 donors; the Thalassemia package (TH01) is PCV; SWPF01 keeps the patient's units in storage for a later visit.
-- Collect and component preparation are one step (2026-11-19): the bag is made into units by a fixed recipe (`BagPlan`, step 6) chosen from what the case still needs, so the bench never decides the split. Labels are printed at collection: the patient label (`bb_bag_label.ezpx`) for a reserved unit, the storage label (`bb_bg_storage_bag_label.ezpx`) for stock. The bag label, the Component Preparation menu and `bb.collection.print_label` / `bb.unit.prepare` are gone.
+- No primary bag (2026-11-21): the donor is connected to the component bags and blood goes straight into them, so a donation has no main number and nothing is prepared afterwards; whole blood is a component like the others. Every screen and the Compatibility Test Report show unit numbers.
+- Collect and component preparation are one step (2026-11-19): the units are drawn by a fixed recipe (`BagPlan`, step 6) chosen from what the case still needs, so the bench never decides the split. Labels are printed at collection: the patient label (`bb_bag_label.ezpx`) for a reserved unit, the storage label (`bb_bg_storage_bag_label.ezpx`) for stock. The bag label, the Component Preparation menu and `bb.collection.print_label` / `bb.unit.prepare` are gone.
 - Eligibility lives on `bb_case_donors` (no separate assessments table), decided twice: physical exam (`fit` / `deferred`), then serology (`eligible` / `deferred`). Both are manual physician inputs.
 - Donor serology has its own menu (not the Donor Examination form): different queue, time and place. Blood group is one combined result, and a reactive (or malaria found) screening result blocks Accept.
 - The crossmatch is patient sample × **unit**, not × donor, so units from storage (no donor brought) are covered.
@@ -474,5 +476,4 @@ What each migration added after the first schema (2026-10-24), newest first. Run
 1. **"Unit: 1" on the Compatibility Test Report.** Check old reports for a patient who got 2+ bags:
    - Unit 1, Unit 2… → which bag for the patient (current assumption, counted from the case's units).
    - Always Unit 1 → bags per report; always 1.
-   - Changes only for split bags → the split number from `unit_no` (`-1`, `-2`).
 2. **Returns.** The report says WB/PRBC may be returned within 30 min of issue, and Platelet/FFP can't be returned. Today a return is just a status change with a reason; nothing enforces the window or the per-component rule. Option: `is_returnable` and `return_window_minutes` on `bb_component_types`.
