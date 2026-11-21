@@ -248,7 +248,8 @@ it('issues a stock unit through Blood Issue and closes the case', function () {
         'patient_blood_group' => 'B_POS',
         'technologist_id' => $this->staff->id,
         'physician_id' => User::factory()->create()->id,
-        'units' => [['unit_id' => $this->unit->id, 'major_result' => 'compatible', 'minor_result' => 'compatible']],
+        'transfusion_reason' => 'Anaemia',
+        'units' => [['unit_id' => $this->unit->id]],
     ])->assertCreated()->assertHeader('Content-Type', 'application/pdf');
 
     expect($this->unit->refresh()->status)->toBe(UnitStatus::Issued)

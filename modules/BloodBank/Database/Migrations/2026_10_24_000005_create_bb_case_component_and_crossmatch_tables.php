@@ -25,8 +25,8 @@ return new class extends Migration
             $table->foreignId('unit_id')->constrained('bb_units');
             $table->unsignedInteger('version')->default(1);
             $table->boolean('is_current')->default(true);
-            $table->string('major_result');
-            $table->string('minor_result');
+            $table->string('major_result')->nullable();
+            $table->string('minor_result')->nullable();
             $table->text('remarks')->nullable();
             $table->foreignId('tested_by')->constrained('users');
             $table->timestampTz('tested_at');

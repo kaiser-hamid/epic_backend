@@ -8,6 +8,7 @@ use Modules\BloodBank\Data\BloodIssueDonorRow;
 use Modules\BloodBank\Data\BloodIssueUnitRow;
 use Modules\BloodBank\Data\BloodIssueView;
 use Modules\BloodBank\Data\SubjectView;
+use Modules\BloodBank\Enums\CrossmatchScope;
 use Modules\BloodBank\Enums\SampleSubject;
 use Modules\BloodBank\Enums\SerologyTest;
 use Modules\BloodBank\Enums\UnitStatus;
@@ -27,8 +28,9 @@ use Modules\Shared\Auth\Models\User;
  *  - `donors` in sequence order: decision, `invoice_no` (an added donor's own bill), `examination` with `pre` and
  *    `post` vitals (`post` null until recorded), `serology` (null until saved), `bag` (null until collected) and
  *    `needs_post_vitals` (this donor's vitals are not recorded yet; the Issue form may send them, but they are optional).
- *  - `units` reserved for or issued to the case, each with its current `crossmatch` (null until issued),
- *    `compatibility_report_print_count` and `can_issue`.
+ *  - `units` reserved for or issued to the case, each with its `crossmatch_scope` (the sides its crossmatch
+ *    covers, by component: `major`, `minor` or `major_minor`), its current `crossmatch` (null until issued; a side
+ *    outside the scope is null), `compatibility_report_print_count` and `can_issue`.
  * "Issue Blood" is enabled while `can_issue`.
  *
  * @property-read BloodIssueView $resource
@@ -77,6 +79,7 @@ final class BloodIssueResource extends JsonResource
             ], $view->donors),
             'units' => array_map(fn (BloodIssueUnitRow $row): array => [
                 ...UnitResource::make($row->unit)->toArray($request),
+                'crossmatch_scope' => CrossmatchScope::forComponent($row->unit->unit->componentType->code)->value,
                 'crossmatch' => $this->crossmatch($row->crossmatch),
                 'compatibility_report_print_count' => $row->reportPrintCount,
                 'can_issue' => $row->canIssue,
@@ -192,8 +195,9 @@ final class BloodIssueResource extends JsonResource
         return $crossmatch === null ? null : [
             'id' => $crossmatch->id,
             'version' => $crossmatch->version,
-            'major_result' => $crossmatch->major_result->value,
-            'minor_result' => $crossmatch->minor_result->value,
+            'scope' => $crossmatch->scope()->value,
+            'major_result' => $crossmatch->major_result?->value,
+            'minor_result' => $crossmatch->minor_result?->value,
             'is_compatible' => $crossmatch->isCompatible(),
             'remarks' => $crossmatch->remarks,
             'status' => $crossmatch->status->value,

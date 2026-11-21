@@ -20,7 +20,9 @@ use Modules\Shared\Printing\Data\PdfPageSetup;
  * Builds the Compatibility Test Report PDF, one page per crossmatch (= per unit), from the sources in
  * workflow.md step 8; nothing on the report is stored twice. The layout follows the paper report and is printed
  * on letterhead paper (215 × 292 mm, the top 35 mm left for the pre-printed header). "Unit" on the report is the
- * unit's place in the order the case's units were issued (1, 2, …). Recording the print is the caller's job.
+ * unit's place in the order the case's units were issued (1, 2, …). "Compatibility with donor" names the sides
+ * the crossmatch covers, by component (`CrossmatchScope`): "Compatible (Major)" for PCV, "Compatible (Minor)" for
+ * plasma and platelet components, "Compatible (Major/Minor)" for whole blood. Recording the print is the caller's job.
  *
  * A stock unit's donor details and bag come from its original collection; its screening tests are the re-test
  * on its bag sample for this case, falling back to the original donor's results for a test not re-done.
@@ -102,9 +104,7 @@ final class CompatibilityReportBuilder
                 ], $stockRows->has($unit->id)
                     ? $this->screeningResults->forRetestedUnit($collection->caseDonor, $stockRows[$unit->id], includeUntested: true)
                     : $this->screeningResults->forCaseDonor($collection->caseDonor, includeUntested: true)),
-                'compatibility' => $crossmatch->isCompatible()
-                    ? 'Compatible (Major/Minor)'
-                    : 'Major: '.$crossmatch->major_result->label().', Minor: '.$crossmatch->minor_result->label(),
+                'compatibility' => 'Compatible ('.$crossmatch->scope()->label().')',
                 'remarks' => $crossmatch->remarks,
             ];
         })->values()->all();

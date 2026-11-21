@@ -300,7 +300,7 @@ Error codes: `UNIT_NOT_IN_CASE`, `REPRINT_REASON_REQUIRED`.
 
 The unit is either from this case's own donor (steps 4–7) or straight from storage (another case's donor, or stock).
 
-1. Crossmatch the patient sample against the unit → `bb_crossmatches`: `case_id`, `patient_sample_id`, `unit_id`, `major_result` and `minor_result` (`compatible` / `incompatible`; the report's "Compatible (Major/Minor)" means both are compatible), `remarks`, `tested_by/at` (Medical Technologist), `status` (entered → reviewed), `reviewed_by/at` (Physician), `version = 1`, `is_current = true`.
+1. Crossmatch the patient sample against the unit → `bb_crossmatches`: `case_id`, `patient_sample_id`, `unit_id`, `major_result` and `minor_result` (`compatible`, or null for a side the component does not need: `CrossmatchScope` by component code, WB major and minor, PCV major, every other component minor; the report prints "Compatible (Major/Minor)", "Compatible (Major)" or "Compatible (Minor)"), `remarks`, `tested_by/at` (Medical Technologist), `status` (entered → reviewed), `reviewed_by/at` (Physician), `version = 1`, `is_current = true`.
 2. Correction → new row with `version + 1` and `amendment_reason`; the old row gets `is_current = false`.
 3. Print the **Compatibility Test Report** (one per unit) → `sh_print_logs` (`bb.compatibility_report`, `printable_type = bb.crossmatch`). Any reprint needs `reprint_reason`.
 
@@ -317,7 +317,7 @@ Where each part of the report comes from (nothing is copied):
 | Cause of transfusion | `bb_cases.transfusion_reason` |
 | Donor name, age, sex, ABO, Rh | `bb_units` → `bb_collections` → `bb_case_donors` → `bb_donors`, and the donor sample's `bb_test_results` |
 | Screening tests, method, result | donor sample's `bb_test_results` + `bb_test_definitions.method`; every screening test is listed, with a blank result when the donor was screened before the test was added (e.g. Malarial Parasite) |
-| Compatibility with donor | `bb_crossmatches.major_result` / `minor_result` |
+| Compatibility with donor | `bb_crossmatches.major_result` / `minor_result`: "Compatible (" + the sides recorded + ")" |
 | Medical Technologist, Physician | `tested_by`, `reviewed_by` |
 
 ### 9. Assign, issue, storage, expiry
@@ -346,24 +346,25 @@ When done, `bb_cases.status = closed` (or `cancelled`).
 
 **Blood Issue / Compatibility Test Report menu** (permissions `bb.issue.view` / `bb.issue.record` / `bb.issue.print_report`, branch scoped). One form records what the report needs and hands the units over. "Issue Blood" (`IssueBlood`) is one transaction:
 
-1. Patient blood group → `bb_test_results` (`BLOOD_GROUP`) on the latest non-rejected patient sample. It is required until one exists; an unchanged value is left alone, and a change is a new version with `amendment_reason`. `tested_by` is the chosen Medical Technologist. The sample moves to `tested`. `sh_patient_master.blood_group` is not touched (Shared owns it).
-2. Post-donation vitals (step 6.3), optional: recorded for the donors sent, unless already recorded. Issuing without them is allowed.
-3. One `bb_crossmatches` row per unit: `tested_by` = Medical Technologist, `reviewed_by` = Physician (both picked with `GET /api/staff/lookup`, not necessarily the user), `status = reviewed`. Both major and minor must be `compatible`, otherwise nothing is saved. A unit with an earlier current crossmatch gets a new version and needs `amendment_reason`.
-4. Each unit goes `reserved → issued`; `storage_location_id` is cleared and a movement row is written.
-5. `bb_cases.supplied_at = now()` (the latest issue). The case is `closed` when every `bb_case_components` line has as many issued units as its `quantity`.
-6. One `sh_print_logs` row per page (`bb.compatibility_report`, `printable_type = bb.crossmatch`). The response is the PDF itself (mPDF, one page per unit, 215 × 292 mm letterhead paper: top margin 35 mm for the pre-printed header, bottom 30 mm, left/right 12.7 mm). It is rendered inside the transaction, so a failed render issues nothing.
+1. Cause of transfusion (required) → `bb_cases.transfusion_reason`, prefilled from the case; a change is audited as `bb.case.details_updated` with old and new values.
+2. Patient blood group → `bb_test_results` (`BLOOD_GROUP`) on the latest non-rejected patient sample. It is required until one exists; an unchanged value is left alone, and a change is a new version with `amendment_reason`. `tested_by` is the chosen Medical Technologist. The sample moves to `tested`. `sh_patient_master.blood_group` is not touched (Shared owns it).
+3. Post-donation vitals (step 6.3), optional: recorded for the donors sent, unless already recorded. Issuing without them is allowed.
+4. One `bb_crossmatches` row per unit: `tested_by` = Medical Technologist, `reviewed_by` = Physician (both picked with `GET /api/staff/lookup`, not necessarily the user), `status = reviewed`. The results are not entered: the unit is recorded `compatible` on the sides its component's `CrossmatchScope` covers and null on the other (a unit found incompatible is simply not issued). A unit with an earlier current crossmatch gets a new version and needs `amendment_reason`.
+5. Each unit goes `reserved → issued`; `storage_location_id` is cleared and a movement row is written.
+6. `bb_cases.supplied_at = now()` (the latest issue). The case is `closed` when every `bb_case_components` line has as many issued units as its `quantity`.
+7. One `sh_print_logs` row per page (`bb.compatibility_report`, `printable_type = bb.crossmatch`). The response is the PDF itself (mPDF, one page per unit, 215 × 292 mm letterhead paper: top margin 35 mm for the pre-printed header, bottom 30 mm, left/right 12.7 mm). It is rendered inside the transaction, so a failed render issues nothing.
 
-Audit: `bb.patient.blood_grouped` / `bb.patient.blood_group_amended` (on `bb.sample`), `bb.donor.post_vitals_recorded` (on `bb.case_donor`), `bb.crossmatch.recorded` (on `bb.crossmatch`), `bb.blood.issued` and `bb.case.closed` (on `bb.case`).
+Audit: `bb.case.details_updated` (cause of transfusion changed), `bb.patient.blood_grouped` / `bb.patient.blood_group_amended` (on `bb.sample`), `bb.donor.post_vitals_recorded` (on `bb.case_donor`), `bb.crossmatch.recorded` (on `bb.crossmatch`), `bb.blood.issued` and `bb.case.closed` (on `bb.case`).
 
 | API | Screen |
 |---|---|
-| `GET blood-issue?invoice_no=` or `?donor_no=` | Scan → the whole case: `case` (with `supplied_at`, components with `reserved_count` / `issued_count` / `remaining_count`), `patient`, `invoice`, `patient_sample` with its current `blood_group`, every donor (decision, `invoice_no`, `examination` with `pre` / `post` vitals, `serology`, `bag`, `needs_post_vitals`), every unit reserved for or issued to the case (with `crossmatch`, `compatibility_report_print_count`, `can_issue`), and `can_issue`. A donor no opens the latest case of this branch the donor is on, closed ones included (for reprints). |
+| `GET blood-issue?invoice_no=` or `?donor_no=` | Scan → the whole case: `case` (with `supplied_at`, components with `reserved_count` / `issued_count` / `remaining_count`), `patient`, `invoice`, `patient_sample` with its current `blood_group`, every donor (decision, `invoice_no`, `examination` with `pre` / `post` vitals, `serology`, `bag`, `needs_post_vitals`), every unit reserved for or issued to the case (with `crossmatch_scope`, `crossmatch` (with `scope`), `compatibility_report_print_count`, `can_issue`), and `can_issue`. A donor no opens the latest case of this branch the donor is on, closed ones included (for reprints). |
 | `GET cases/{case}/blood-issue` | Same screen, opened from the Pending tab or a case. |
 | `GET blood-issue/pending` | Pending tab: open cases with a `reserved` unit. |
-| `POST cases/{case}/blood-issue` | "Issue Blood": `technologist_id`, `physician_id`, `units: [{unit_id, major_result, minor_result, remarks?}]` (1–20), `patient_blood_group` (required until recorded), `amendment_reason`, optional `post_donation: [{case_donor_id, pulse_bpm, bp_systolic, bp_diastolic, temperature_f}]` (may be omitted or empty). Returns `application/pdf` (201). |
+| `POST cases/{case}/blood-issue` | "Issue Blood": `technologist_id`, `physician_id`, `transfusion_reason` (required, max 1000), `units: [{unit_id, remarks?}]` (1–20), `patient_blood_group` (required until recorded), `amendment_reason`, optional `post_donation: [{case_donor_id, pulse_bpm, bp_systolic, bp_diastolic, temperature_f}]` (may be omitted or empty). Returns `application/pdf` (201). |
 | `POST cases/{case}/compatibility-reports` | Reprint: `unit_ids`, `reprint_reason` (required for a reprint). Returns `application/pdf` (200) with a "REPRINT" mark. |
 
-Error codes (JSON as usual): `CASE_NOT_OPEN`, `CASE_TAKES_NO_BLOOD` (Autologous PRP / Therapeutic Phlebotomy case: no issue, no Compatibility Test Report), `UNIT_NOT_IN_CASE`, `UNIT_NOT_RESERVED` (409), `UNIT_EXPIRED`, `CROSSMATCH_INCOMPATIBLE`, `PATIENT_SAMPLE_NOT_COLLECTED`, `AMENDMENT_REASON_REQUIRED`, `CASE_DONOR_NOT_IN_CASE`, `POST_DONATION_VITALS_RECORDED` (409), `CROSSMATCH_NOT_RECORDED` (reprint), `REPRINT_REASON_REQUIRED`, `VALIDATION_FAILED` (`patient_blood_group` missing, unknown user, vitals out of range), `FORBIDDEN`.
+Error codes (JSON as usual): `CASE_NOT_OPEN`, `CASE_TAKES_NO_BLOOD` (Autologous PRP / Therapeutic Phlebotomy case: no issue, no Compatibility Test Report), `UNIT_NOT_IN_CASE`, `UNIT_NOT_RESERVED` (409), `UNIT_EXPIRED`, `PATIENT_SAMPLE_NOT_COLLECTED`, `AMENDMENT_REASON_REQUIRED`, `CASE_DONOR_NOT_IN_CASE`, `POST_DONATION_VITALS_RECORDED` (409), `CROSSMATCH_NOT_RECORDED` (reprint), `REPRINT_REASON_REQUIRED`, `VALIDATION_FAILED` (`patient_blood_group` or `transfusion_reason` missing, unknown user, vitals out of range), `FORBIDDEN`.
 
 Not built yet: recording an incompatible crossmatch without issuing, and returns / releasing a reservation. A stock unit reaches this screen through step 4a.
 
@@ -426,6 +427,7 @@ What each migration added after the first schema (2026-10-24), newest first. Run
 
 | Date | Migration | Change |
 |---|---|---|
+| 2026-11-21 | edited in place: `create_bb_case_component_and_crossmatch_tables` | `bb_crossmatches.major_result` / `minor_result` nullable: a side outside the component's crossmatch scope is null. |
 | 2026-11-21 | `add_stock_source_to_bb_case_donors_table` | `bb_case_donors.source` (`donor` / `stock`, default `donor`), `unit_id` (FK `bb_units`), check `source = stock` ⇔ `unit_id` set; `unique(case_id, donor_id)` becomes a partial index `WHERE source = 'donor'`, plus `unique(case_id, unit_id)`. `sh_print_logs.document_type` `bb.component_label` split into `bb.storage_label` / `bb.patient_label` (no data migration: dev DB fresh). |
 | 2026-11-19 | edited in place: `create_bb_collection_and_unit_tables` | `bb_collections.volume_ml` removed: only each unit records a volume (optional ml per unit at Collect). |
 | 2026-11-19 | `create_bb_phlebotomies_table` | One row per Therapeutic Phlebotomy case: `volume_ml`, optional pre/post vitals, `notes`, `performed_at/by`. |
@@ -463,6 +465,7 @@ What each migration added after the first schema (2026-10-24), newest first. Run
 - Donor serology has its own menu (not the Donor Examination form): different queue, time and place. Blood group is one combined result, and a reactive (or malaria found) screening result blocks Accept.
 - The crossmatch is patient sample × **unit**, not × donor, so units from storage (no donor brought) are covered.
 - Stock blood (2026-11-21): a stock bag stands in for a donor of the case (`bb_case_donors.source = stock`) and goes through the donor steps: its bag sample holds it (`held`), the row is `fit` without a physical exam, serology is re-done on the bag sample (Accept = booked, Defer = back to stock or quarantine), the patient label reserves it, and Blood Issue is unchanged. There is no separate release: a deferred bag goes back by itself, and Close case returns held ones. The report prints the re-test. The bag is crossmatched at issue, like a donor's own unit (the earlier "crossmatch before reserving a stock unit" idea is superseded).
+- Crossmatch by component (2026-11-21): the crossmatch result is not entered at issue. Whole blood is crossmatched major and minor, PCV major, every plasma or platelet component (FFP, FP, CRYO, Cryo Poor Plasma, Platelet, PRP, PA) minor (`CrossmatchScope`); the unit is recorded compatible on those sides and the report prints them. An incompatible unit is not issued (no record). Issue Blood also asks for the cause of transfusion (required) and saves it on the case.
 - "Name of consultant" is the billing referral doctor; Blood Bank stores no doctor.
 - Print logs are Shared (`sh_print_logs`), not Blood Bank.
 

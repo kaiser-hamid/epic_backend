@@ -84,7 +84,8 @@ beforeEach(function () {
         'patient_blood_group' => 'B_POS',
         'technologist_id' => $this->technologist->id,
         'physician_id' => $this->physician->id,
-        'units' => [['unit_id' => $this->unit->id, 'major_result' => 'compatible', 'minor_result' => 'compatible']],
+        'transfusion_reason' => 'Anaemia',
+        'units' => [['unit_id' => $this->unit->id]],
         'post_donation' => [$this->vitals],
         ...$overrides,
     ];
@@ -136,6 +137,38 @@ it('issues the units, records the crossmatch and vitals, closes the case and ret
         ->and(AuditLog::where('action', BloodBankAuditAction::CaseClosed)->count())->toBe(1);
 });
 
+it('records the crossmatch on the sides the component covers and prints it on the report', function (string $code, ?string $major, ?string $minor, string $scope) {
+    $this->pcv->update(['code' => $code]);
+
+    ($this->issue)(($this->payload)())->assertCreated();
+
+    $crossmatch = Crossmatch::sole();
+    expect($crossmatch->major_result?->value)->toBe($major)
+        ->and($crossmatch->minor_result?->value)->toBe($minor)
+        ->and($crossmatch->isCompatible())->toBeTrue();
+
+    signInToBranch($this, $this->clerk, $this->branch)
+        ->getJson('/api/blood-bank/blood-issue?invoice_no=NB2611030001')
+        ->assertJsonPath('data.units.0.crossmatch_scope', $scope)
+        ->assertJsonPath('data.units.0.crossmatch.scope', $scope);
+})->with([
+    'whole blood' => ['WB', 'compatible', 'compatible', 'major_minor'],
+    'PCV' => ['PCV', 'compatible', null, 'major'],
+    'FFP' => ['FFP', null, 'compatible', 'minor'],
+    'platelet apheresis' => ['PA', null, 'compatible', 'minor'],
+]);
+
+it('saves the cause of transfusion on the case and audits the change', function () {
+    $this->case->update(['transfusion_reason' => 'Thalassaemia']);
+
+    ($this->issue)(($this->payload)(['transfusion_reason' => 'Anaemia']))->assertCreated();
+
+    expect($this->case->refresh()->transfusion_reason)->toBe('Anaemia');
+    $audit = AuditLog::where('action', BloodBankAuditAction::CaseDetailsUpdated)->sole();
+    expect($audit->old_values)->toBe(['transfusion_reason' => 'Thalassaemia'])
+        ->and($audit->new_values)->toBe(['transfusion_reason' => 'Anaemia']);
+});
+
 it('keeps the case open while billed components remain to be issued', function () {
     $this->billed->update(['quantity' => 2]);
 
@@ -160,11 +193,7 @@ it('issues nothing when a rule is broken', function (Closure $setup, Closure $pa
         ->and($this->screening->refresh()->post_recorded_at)->toBeNull()
         ->and($this->case->refresh()->status)->toBe(CaseStatus::Open);
 })->with([
-    'incompatible crossmatch' => [
-        fn () => null,
-        fn () => ($this->payload)(['units' => [['unit_id' => $this->unit->id, 'major_result' => 'compatible', 'minor_result' => 'incompatible']]]),
-        422, 'CROSSMATCH_INCOMPATIBLE',
-    ],
+    'no cause of transfusion' => [fn () => null, fn () => ($this->payload)(['transfusion_reason' => '']), 422, 'VALIDATION_FAILED'],
     'autologous PRP case' => [fn () => $this->case->update(['service' => CaseService::AutologousPrp]), fn () => ($this->payload)(), 422, 'CASE_TAKES_NO_BLOOD'],
     'therapeutic phlebotomy case' => [fn () => $this->case->update(['service' => CaseService::TherapeuticPhlebotomy]), fn () => ($this->payload)(), 422, 'CASE_TAKES_NO_BLOOD'],
     'unit not reserved' => [fn () => $this->unit->update(['status' => UnitStatus::Available]), fn () => ($this->payload)(), 409, 'UNIT_NOT_RESERVED'],

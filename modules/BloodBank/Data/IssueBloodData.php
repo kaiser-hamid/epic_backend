@@ -13,7 +13,8 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 /**
  * The "Issue Blood" form. `patient_blood_group` is required until the patient sample has a blood group; changing
  * a saved one needs `amendment_reason`. The Medical Technologist and the Physician who sign the report are
- * picked from staff. Each unit carries its crossmatch; `post_donation` optionally holds the vitals of donors not
+ * picked from staff. `transfusion_reason` ("Cause of transfusion", printed on the report) is required and saved
+ * on the case. Each unit carries its crossmatch remarks; `post_donation` optionally holds the vitals of donors not
  * recorded yet; blood can be issued without them.
  */
 #[MapName(SnakeCaseMapper::class)]
@@ -26,6 +27,8 @@ final class IssueBloodData extends Data
     public function __construct(
         public int $technologistId,
         public int $physicianId,
+        #[Max(1000)]
+        public string $transfusionReason,
         #[DataCollectionOf(CrossmatchUnitData::class), Min(1), Max(20)]
         public array $units,
         public ?BloodGroup $patientBloodGroup = null,

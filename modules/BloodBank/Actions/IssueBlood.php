@@ -11,6 +11,8 @@ use Modules\BloodBank\Data\IssueBloodData;
 use Modules\BloodBank\Data\PostDonationVitalsData;
 use Modules\BloodBank\Enums\BloodBankAuditAction;
 use Modules\BloodBank\Enums\CaseStatus;
+use Modules\BloodBank\Enums\CrossmatchResult;
+use Modules\BloodBank\Enums\CrossmatchScope;
 use Modules\BloodBank\Enums\PrintDocumentType;
 use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SerologyTest;
@@ -20,7 +22,6 @@ use Modules\BloodBank\Exceptions\AmendmentReasonRequired;
 use Modules\BloodBank\Exceptions\CaseDonorNotInCase;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
 use Modules\BloodBank\Exceptions\CaseTakesNoBlood;
-use Modules\BloodBank\Exceptions\CrossmatchIncompatible;
 use Modules\BloodBank\Exceptions\PatientSampleNotCollected;
 use Modules\BloodBank\Exceptions\PostDonationVitalsRecorded;
 use Modules\BloodBank\Exceptions\UnitExpired;
@@ -44,13 +45,15 @@ use Modules\Shared\Printing\Data\PdfDocument;
 
 /**
  * "Issue Blood": in one transaction, records what the Compatibility Test Report needs and hands the units over.
- *  1. The patient's blood group on the patient sample (versioned; a change needs an amendment reason).
- *  2. Post-donation vitals of donors, where sent and not recorded yet (optional: blood can be issued without them).
- *  3. A crossmatch per unit (patient sample × unit), signed by the chosen Medical Technologist and Physician.
- *     Only a unit compatible on both major and minor can be issued; the physician's call, never automatic.
- *  4. Each unit goes reserved → issued and leaves its storage location, with a movement row.
- *  5. The case's supply time is set; the case closes when every billed component is issued.
- *  6. One report page per unit is logged as printed and the PDF is returned.
+ *  1. The cause of transfusion on the case (printed on the report; audited when it changes).
+ *  2. The patient's blood group on the patient sample (versioned; a change needs an amendment reason).
+ *  3. Post-donation vitals of donors, where sent and not recorded yet (optional: blood can be issued without them).
+ *  4. A crossmatch per unit (patient sample × unit), signed by the chosen Medical Technologist and Physician. It is
+ *     recorded compatible on the sides the unit's component covers (`CrossmatchScope`: WB major and minor, PCV
+ *     major, the rest minor); a unit found incompatible is simply not issued.
+ *  5. Each unit goes reserved → issued and leaves its storage location, with a movement row.
+ *  6. The case's supply time is set; the case closes when every billed component is issued.
+ *  7. One report page per unit is logged as printed and the PDF is returned.
  * The PDF is rendered inside the transaction, so a failed render issues nothing and the user can simply retry.
  */
 final class IssueBlood
@@ -70,7 +73,6 @@ final class IssueBlood
      * @throws UnitNotInCase
      * @throws UnitNotReserved
      * @throws UnitExpired
-     * @throws CrossmatchIncompatible
      * @throws PatientSampleNotCollected
      * @throws AmendmentReasonRequired
      * @throws CaseDonorNotInCase
@@ -87,10 +89,10 @@ final class IssueBlood
             }
 
             $units = $this->units($case, $data);
-            $this->ensureCompatible($data);
 
             $patientSample = $this->issueGate->patientSampleFor($case) ?? throw new PatientSampleNotCollected;
 
+            $this->recordTransfusionReason($case, $data);
             $this->recordPatientBloodGroup($actor, $case, $patientSample, $data);
             $this->recordPostDonationVitals($actor, $case, $units, $data);
             $crossmatches = $this->recordCrossmatches($actor, $case, $patientSample, $units, $data);
@@ -117,7 +119,7 @@ final class IssueBlood
         $units = Unit::query()
             ->whereKey(array_map(fn (CrossmatchUnitData $row): int => $row->unitId, $data->units))
             ->lockForUpdate()
-            ->with('collection.caseDonor.screening')
+            ->with(['componentType', 'collection.caseDonor.screening'])
             ->get()
             ->keyBy('id');
 
@@ -133,15 +135,24 @@ final class IssueBlood
     }
 
     /**
-     * @throws CrossmatchIncompatible
+     * The cause of transfusion as confirmed on the form; a change is audited like a case details edit.
      */
-    private function ensureCompatible(IssueBloodData $data): void
+    private function recordTransfusionReason(PatientCase $case, IssueBloodData $data): void
     {
-        foreach ($data->units as $row) {
-            if (! $row->isCompatible()) {
-                throw new CrossmatchIncompatible;
-            }
+        $old = $case->transfusion_reason;
+
+        if ($old === $data->transfusionReason) {
+            return;
         }
+
+        $case->update(['transfusion_reason' => $data->transfusionReason]);
+
+        $this->auditLogger->record(
+            BloodBankAuditAction::CaseDetailsUpdated,
+            $case,
+            oldValues: ['transfusion_reason' => $old],
+            newValues: ['transfusion_reason' => $data->transfusionReason],
+        );
     }
 
     /**
@@ -258,7 +269,8 @@ final class IssueBlood
     }
 
     /**
-     * One crossmatch row per unit. A unit crossmatched before gets a new version, which needs the amendment reason.
+     * One crossmatch row per unit, compatible on the sides its component's scope covers and null on the other. A
+     * unit crossmatched before gets a new version, which needs the amendment reason.
      *
      * @param  EloquentCollection<int, Unit>  $units
      * @return EloquentCollection<int, Crossmatch> in request order
@@ -271,6 +283,7 @@ final class IssueBlood
 
         foreach ($data->units as $row) {
             $unit = $units[$row->unitId];
+            $scope = CrossmatchScope::forComponent($unit->componentType->code);
             $previous = Crossmatch::query()->where('unit_id', $unit->id)->where('case_id', $case->id)->current()->lockForUpdate()->get();
 
             if ($previous->isNotEmpty() && blank($data->amendmentReason)) {
@@ -287,8 +300,8 @@ final class IssueBlood
                 'unit_id' => $unit->id,
                 'version' => $version + 1,
                 'is_current' => true,
-                'major_result' => $row->majorResult,
-                'minor_result' => $row->minorResult,
+                'major_result' => $scope->coversMajor() ? CrossmatchResult::Compatible : null,
+                'minor_result' => $scope->coversMinor() ? CrossmatchResult::Compatible : null,
                 'remarks' => $row->remarks,
                 'tested_by' => $data->technologistId,
                 'tested_at' => now(),
@@ -303,8 +316,9 @@ final class IssueBlood
                 'unit_no' => $unit->unit_no,
                 'sample_no' => $patientSample->sample_no,
                 'version' => $crossmatch->version,
-                'major_result' => $row->majorResult->value,
-                'minor_result' => $row->minorResult->value,
+                'scope' => $scope->value,
+                'major_result' => $crossmatch->major_result?->value,
+                'minor_result' => $crossmatch->minor_result?->value,
                 'remarks' => $row->remarks,
                 'tested_by' => $data->technologistId,
                 'reviewed_by' => $data->physicianId,

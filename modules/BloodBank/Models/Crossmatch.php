@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\BloodBank\Database\Factories\CrossmatchFactory;
 use Modules\BloodBank\Enums\CrossmatchResult;
+use Modules\BloodBank\Enums\CrossmatchScope;
 use Modules\BloodBank\Enums\TestResultStatus;
 use Modules\Shared\Auth\Models\User;
 
@@ -42,10 +43,26 @@ final class Crossmatch extends Model
         ];
     }
 
+    /**
+     * Compatible on every side that was tested; a side outside the unit's `CrossmatchScope` is null.
+     */
     public function isCompatible(): bool
     {
-        return $this->major_result === CrossmatchResult::Compatible
-            && $this->minor_result === CrossmatchResult::Compatible;
+        return ($this->major_result ?? $this->minor_result) !== null
+            && $this->major_result !== CrossmatchResult::Incompatible
+            && $this->minor_result !== CrossmatchResult::Incompatible;
+    }
+
+    /**
+     * The sides tested, as recorded ("Major", "Minor" or "Major/Minor" on the report).
+     */
+    public function scope(): CrossmatchScope
+    {
+        return match (true) {
+            $this->major_result !== null && $this->minor_result !== null => CrossmatchScope::MajorMinor,
+            $this->major_result !== null => CrossmatchScope::Major,
+            default => CrossmatchScope::Minor,
+        };
     }
 
     public function patientCase(): BelongsTo
