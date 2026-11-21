@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\BloodBank\Database\Factories\CaseDonorFactory;
+use Modules\BloodBank\Enums\CaseDonorSource;
 use Modules\BloodBank\Enums\CaseDonorStatus;
 use Modules\Shared\Auth\Models\User;
 
 #[Table('bb_case_donors')]
-#[Fillable(['case_id', 'donor_id', 'billing_id', 'sequence_no', 'status', 'deferral_reason', 'assessed_by', 'assessed_at'])]
+#[Fillable(['case_id', 'donor_id', 'source', 'unit_id', 'billing_id', 'sequence_no', 'status', 'deferral_reason', 'assessed_by', 'assessed_at'])]
 #[UseFactory(CaseDonorFactory::class)]
 final class CaseDonor extends Model
 {
@@ -23,14 +24,40 @@ final class CaseDonor extends Model
     use HasFactory;
 
     /**
+     * A row is a real donor unless created as a stock unit.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'source' => 'donor',
+    ];
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'source' => CaseDonorSource::class,
             'status' => CaseDonorStatus::class,
             'assessed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * A stock unit standing in for a donor (its sample, serology and label go through the donor steps).
+     */
+    public function isStock(): bool
+    {
+        return $this->source === CaseDonorSource::Stock;
+    }
+
+    /**
+     * The stock unit of a stock row; null for a real donor.
+     */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class, 'unit_id');
     }
 
     public function patientCase(): BelongsTo

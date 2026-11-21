@@ -4,6 +4,7 @@ namespace Modules\BloodBank\Services;
 
 use Carbon\CarbonInterface;
 use Modules\BloodBank\Data\UnitView;
+use Modules\BloodBank\Enums\PrintDocumentType;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
 use Modules\Shared\Patient\Data\PatientSummary;
 use Modules\Shared\Patient\Enums\BloodGroup;
@@ -12,7 +13,8 @@ use Modules\Shared\Printing\Contracts\LabelRenderer;
 
 /**
  * The printer command for each unit label, each value cut to the length its template variable declares. A unit
- * reserved for or issued to a patient gets the patient label (`resources/label/bb_bag_label.ezpx`):
+ * reserved for or issued to a patient gets the patient label (`resources/label/bb_bag_label.ezpx`; for a stock unit
+ * it is printed over the storage label):
  * - `V00` (barcode): the unit no
  * - `V01`, `V02`: collection and expiry date (`d/m/Y`)
  * - `V03` to `V05`: the patient's name, age (`25Y`) and gender (`M`)
@@ -21,7 +23,8 @@ use Modules\Shared\Printing\Contracts\LabelRenderer;
  * - `V08`: the donor's name
  * - `V09`, `V10`: the referring doctor and number of the case's invoice
  *
- * A stock unit gets the storage label (`resources/label/bb_bg_storage_bag_label.ezpx`):
+ * A stock unit (also one held for a case while its serology is pending) gets the storage label
+ * (`resources/label/bb_bg_storage_bag_label.ezpx`):
  * - `V00` (barcode): the unit no; `V01` (barcode): the donor no
  * - `V02` to `V04`: the donor's name (at most 24 characters), age (`32Y`) and gender (`Male`)
  * - `V05`: the blood group; `V06`: the component code
@@ -59,7 +62,7 @@ final class UnitLabelCommands
             $donor = $unit->collection->caseDonor->donor;
             $bloodGroup = $this->bloodGroup($unit->blood_group ?? $donor->blood_group);
 
-            if ($unit->patientCase === null) {
+            if (PrintDocumentType::unitLabelFor($unit->status) === PrintDocumentType::StorageLabel) {
                 $commands[$unit->id] = $this->labels->render(self::STORAGE_TEMPLATE, [
                     'V00' => $unit->unit_no,
                     'V01' => $donor->donor_no,

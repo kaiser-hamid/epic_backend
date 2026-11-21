@@ -204,7 +204,8 @@ final class IssueBlood
 
     /**
      * Post-donation vitals are optional: blood is issued whether or not they are recorded. Vitals can be sent for
-     * any collected donor of the case still missing them, but never overwrite recorded ones.
+     * any collected donor of the case still missing them, but never overwrite recorded ones. A stock unit's
+     * donor gave blood for another case, so their vitals are not recorded here.
      *
      * @param  EloquentCollection<int, Unit>  $units
      *
@@ -214,7 +215,10 @@ final class IssueBlood
      */
     private function recordPostDonationVitals(User $actor, PatientCase $case, EloquentCollection $units, IssueBloodData $data): void
     {
-        $issuedDonors = $units->map(fn (Unit $unit): CaseDonor => $unit->collection->caseDonor)->keyBy('id');
+        $issuedDonors = $units
+            ->map(fn (Unit $unit): CaseDonor => $unit->collection->caseDonor)
+            ->filter(fn (CaseDonor $caseDonor): bool => $caseDonor->case_id === $case->id)
+            ->keyBy('id');
         $entries = collect($data->postDonation)->keyBy(fn (PostDonationVitalsData $entry): int => $entry->caseDonorId);
 
         $donors = CaseDonor::query()

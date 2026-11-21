@@ -29,6 +29,7 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::get('sample-collection/pending', [SampleCollectionController::class, 'pending'])->middleware('can:bb.sample.view')->name('sample-collection.pending');
     Route::get('cases/{case}/sample-collection', [SampleCollectionController::class, 'show'])->middleware('can:viewSamples,case')->name('cases.sample-collection.show');
     Route::post('cases/{case}/samples', [SampleCollectionController::class, 'collect'])->middleware('can:collectSamples,case')->name('cases.samples.store');
+    Route::get('cases/{case}/stock-units/check', [SampleCollectionController::class, 'checkStockUnit'])->middleware('can:collectSamples,case')->name('cases.stock-units.check');
     Route::post('cases/{case}/sample-labels', [SampleCollectionController::class, 'printLabels'])->middleware('can:printSampleLabels,case')->name('cases.sample-labels.store');
     Route::get('samples', [SampleController::class, 'index'])->middleware('can:bb.sample.view')->name('samples.index');
 
@@ -46,6 +47,7 @@ Route::prefix('blood-bank')->name('blood-bank.')->middleware(['erp.auth', 'erp.p
     Route::get('blood-collection/pending', [BloodCollectionController::class, 'pending'])->middleware('can:bb.collection.view')->name('blood-collection.pending');
     Route::get('cases/{case}/blood-collection', [BloodCollectionController::class, 'show'])->middleware('can:viewBloodCollection,case')->name('cases.blood-collection.show');
     Route::post('cases/{case}/donors/{caseDonor}/collection', [BloodCollectionController::class, 'collect'])->middleware('can:collectBlood,case')->name('cases.donors.collection.store');
+    Route::post('cases/{case}/donors/{caseDonor}/stock-unit', [BloodCollectionController::class, 'reserveStockUnit'])->middleware('can:collectBlood,case')->name('cases.donors.stock-unit.store');
     Route::post('cases/{case}/therapeutic-phlebotomy', [BloodCollectionController::class, 'recordPhlebotomy'])->middleware('can:recordPhlebotomy,case')->name('cases.therapeutic-phlebotomy.store');
     Route::get('blood-collections', [BloodCollectionController::class, 'index'])->middleware('can:bb.collection.view')->name('blood-collections.index');
 

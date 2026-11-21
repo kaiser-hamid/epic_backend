@@ -14,6 +14,9 @@ use Modules\Shared\Auth\Models\User;
  */
 final class UnitMovementRecorder
 {
+    /**
+     * @param  int|null  $caseId  the case the change is about when the unit no longer points to it (a release)
+     */
     public function record(
         Unit $unit,
         User $actor,
@@ -21,6 +24,7 @@ final class UnitMovementRecorder
         ?int $fromLocationId = null,
         ?string $reason = null,
         ?CarbonInterface $occurredAt = null,
+        ?int $caseId = null,
     ): UnitMovement {
         return UnitMovement::query()->create([
             'unit_id' => $unit->id,
@@ -28,7 +32,7 @@ final class UnitMovementRecorder
             'to_status' => $unit->status,
             'from_location_id' => $fromLocationId,
             'to_location_id' => $unit->storage_location_id,
-            'case_id' => $unit->case_id,
+            'case_id' => $caseId ?? $unit->case_id,
             'reason' => $reason,
             'performed_by' => $actor->id,
             'occurred_at' => $occurredAt ?? now(),

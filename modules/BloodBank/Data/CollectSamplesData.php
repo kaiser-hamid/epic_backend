@@ -37,6 +37,7 @@ final class CollectSamplesData extends Data
     {
         return [
             'subjects.*.case_donor_id' => ['distinct'],
+            'subjects.*.unit_no' => ['distinct'],
         ];
     }
 }

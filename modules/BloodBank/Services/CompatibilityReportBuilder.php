@@ -4,6 +4,7 @@ namespace Modules\BloodBank\Services;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Modules\BloodBank\Enums\CaseDonorSource;
 use Modules\BloodBank\Enums\SerologyTest;
 use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Models\Crossmatch;
@@ -20,6 +21,9 @@ use Modules\Shared\Printing\Data\PdfPageSetup;
  * workflow.md step 8; nothing on the report is stored twice. The layout follows the paper report and is printed
  * on letterhead paper (215 × 292 mm, the top 35 mm left for the pre-printed header). "Unit" on the report is the
  * unit's place in the order the case's units were issued (1, 2, …). Recording the print is the caller's job.
+ *
+ * A stock unit's donor details and bag come from its original collection; its screening tests are the re-test
+ * on its bag sample for this case, falling back to the original donor's results for a test not re-done.
  */
 final class CompatibilityReportBuilder
 {
@@ -51,8 +55,13 @@ final class CompatibilityReportBuilder
         $patient = $this->patients->summaries([$case->patient_master_id])[$case->patient_master_id] ?? null;
         $invoice = $case->billing_id === null ? null : ($this->invoices->summaries([$case->billing_id])[$case->billing_id] ?? null);
         $sequence = $this->issueSequence($case);
+        $stockRows = $case->caseDonors()
+            ->where('source', CaseDonorSource::Stock)
+            ->whereIn('unit_id', $crossmatches->pluck('unit_id')->all())
+            ->get()
+            ->keyBy('unit_id');
 
-        $pages = $crossmatches->map(function (Crossmatch $crossmatch) use ($case, $patient, $invoice, $isReprint, $sequence): array {
+        $pages = $crossmatches->map(function (Crossmatch $crossmatch) use ($case, $patient, $invoice, $isReprint, $sequence, $stockRows): array {
             $unit = $crossmatch->unit;
             $collection = $unit->collection;
             $donor = $collection->caseDonor->donor;
@@ -90,7 +99,9 @@ final class CompatibilityReportBuilder
                     'name' => $test['name'],
                     'method' => $test['method'],
                     'result' => $test['result'] === null ? null : SerologyTest::from($test['code'])->resultLabel($test['result']),
-                ], $this->screeningResults->forCaseDonor($collection->caseDonor, includeUntested: true)),
+                ], $stockRows->has($unit->id)
+                    ? $this->screeningResults->forRetestedUnit($collection->caseDonor, $stockRows[$unit->id], includeUntested: true)
+                    : $this->screeningResults->forCaseDonor($collection->caseDonor, includeUntested: true)),
                 'compatibility' => $crossmatch->isCompatible()
                     ? 'Compatible (Major/Minor)'
                     : 'Major: '.$crossmatch->major_result->label().', Minor: '.$crossmatch->minor_result->label(),

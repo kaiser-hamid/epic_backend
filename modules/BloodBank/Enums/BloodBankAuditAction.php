@@ -21,4 +21,7 @@ enum BloodBankAuditAction: string
     case BloodIssued = 'bb.blood.issued';
     case CaseClosed = 'bb.case.closed';
     case PhlebotomyRecorded = 'bb.phlebotomy.recorded';
+    case StockUnitHeld = 'bb.stock_unit.held';
+    case StockUnitReleased = 'bb.stock_unit.released';
+    case StockUnitReserved = 'bb.stock_unit.reserved';
 }

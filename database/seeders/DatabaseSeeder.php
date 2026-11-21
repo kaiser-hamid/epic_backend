@@ -2,14 +2,18 @@
 
 namespace Database\Seeders;
 
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Modules\BloodBank\Database\Seeders\BillableItemSeeder;
 use Modules\BloodBank\Database\Seeders\ComponentTypeSeeder;
+use Modules\BloodBank\Database\Seeders\StorageLocationSeeder;
+use Modules\Shared\Auth\Database\Seeders\UserSeeder;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Branch\Models\Branch;
 use Modules\Shared\Branch\Models\BranchModule;
+use Modules\Shared\Doctor\Database\Seeders\DoctorSeeder;
 use Modules\Shared\Rbac\Actions\SeedRoleTemplates;
 use Modules\Shared\Rbac\Actions\SyncPermissionCatalog;
 use Modules\Shared\TestCatalog\Database\Seeders\BloodBankTestItemSeeder;
@@ -23,7 +27,7 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
-    public function run(SyncPermissionCatalog $syncPermissionCatalog, SeedRoleTemplates $seedRoleTemplates): void
+    public function run(SyncPermissionCatalog $syncPermissionCatalog, SeedRoleTemplates $seedRoleTemplates, Application $app): void
     {
         $syncPermissionCatalog->handle();
         $seedRoleTemplates->handle();
@@ -53,7 +57,16 @@ class DatabaseSeeder extends Seeder
             'employee_id' => 'EMP-0001',
             'name' => 'Test User',
             'username' => 'khtusher',
-            'password' => Hash::make('Pa$$word'),
+            'password' => Hash::make('321321'),
+            'must_change_password' => false,
         ]);
+
+        $this->call(StorageLocationSeeder::class);
+
+        // Demo staff (password `password`) and made-up doctors never reach production.
+        // After the super admin: staff numbers continue from EMP-0002, and doctors are created by the first user.
+        if (! $app->isProduction()) {
+            $this->call([UserSeeder::class, DoctorSeeder::class]);
+        }
     }
 }

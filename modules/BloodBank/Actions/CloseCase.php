@@ -5,6 +5,7 @@ namespace Modules\BloodBank\Actions;
 use Illuminate\Support\Facades\DB;
 use Modules\BloodBank\Data\CaseView;
 use Modules\BloodBank\Data\CloseCaseData;
+use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Exceptions\CaseHasReservedUnits;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
 use Modules\BloodBank\Exceptions\CloseReasonRequired;
@@ -13,6 +14,7 @@ use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Queries\ShowCase;
 use Modules\BloodBank\Services\CaseCloser;
 use Modules\BloodBank\Services\CaseClosingGate;
+use Modules\BloodBank\Services\StockUnitHold;
 use Modules\Shared\Auth\Models\User;
 
 /**
@@ -20,6 +22,7 @@ use Modules\Shared\Auth\Models\User;
  * (cross matching, bed charge, infusion), or a case that cannot finish (the patient left, got fewer units than
  * billed, no replacement donor came). Refused while units are reserved for the case. A reason is required while
  * billed work is outstanding, and the audit log records what was not supplied.
+ * Stock units still held for the case (sampled, patient label not printed) go back to stock.
  */
 final class CloseCase
 {
@@ -27,6 +30,7 @@ final class CloseCase
         private readonly CaseClosingGate $closingGate,
         private readonly CaseCloser $caseCloser,
         private readonly ShowCase $showCase,
+        private readonly StockUnitHold $stockUnitHold,
     ) {}
 
     /**
@@ -49,14 +53,29 @@ final class CloseCase
                 throw new CloseReasonRequired;
             }
 
+            $outstanding = $this->outstanding($case);
+            $this->releaseHeldUnits($actor, $case, $reason);
+
             $this->caseCloser->close($case, $actor, 'close_case', $reason, [
-                'outstanding' => $this->outstanding($case),
+                'outstanding' => $outstanding,
             ]);
 
             return $case;
         });
 
         return $this->showCase->get($case);
+    }
+
+    /**
+     * Stock units held for the case (bag sample taken, patient label not printed) go back to stock.
+     */
+    private function releaseHeldUnits(User $actor, PatientCase $case, ?string $reason): void
+    {
+        $units = $case->units()->where('status', UnitStatus::Held)->lockForUpdate()->get();
+
+        foreach ($units as $unit) {
+            $this->stockUnitHold->release($actor, $case, $unit, $reason === null ? 'Case closed' : "Case closed: {$reason}");
+        }
     }
 
     /**

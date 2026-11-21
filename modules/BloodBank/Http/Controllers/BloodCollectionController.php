@@ -6,9 +6,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\BloodBank\Actions\CollectBlood;
 use Modules\BloodBank\Actions\RecordTherapeuticPhlebotomy;
+use Modules\BloodBank\Actions\ReserveStockUnit;
 use Modules\BloodBank\Data\BloodCollectionLookupData;
 use Modules\BloodBank\Data\CollectBloodData;
 use Modules\BloodBank\Data\RecordTherapeuticPhlebotomyData;
+use Modules\BloodBank\Data\ReserveStockUnitData;
 use Modules\BloodBank\Http\Resources\BagResource;
 use Modules\BloodBank\Http\Resources\BloodCollectionResource;
 use Modules\BloodBank\Http\Resources\CaseResource;
@@ -26,6 +28,7 @@ final class BloodCollectionController
         private readonly ListBloodCollections $listBloodCollections,
         private readonly CollectBlood $collectBlood,
         private readonly RecordTherapeuticPhlebotomy $recordTherapeuticPhlebotomy,
+        private readonly ReserveStockUnit $reserveStockUnit,
     ) {}
 
     public function recordPhlebotomy(Request $request, PatientCase $case, RecordTherapeuticPhlebotomyData $data): BloodCollectionResource
@@ -56,5 +59,10 @@ final class BloodCollectionController
     public function collect(Request $request, PatientCase $case, CaseDonor $caseDonor, CollectBloodData $data): BloodCollectionResource
     {
         return BloodCollectionResource::make($this->collectBlood->handle($request->user(), $case, $caseDonor, $data));
+    }
+
+    public function reserveStockUnit(Request $request, PatientCase $case, CaseDonor $caseDonor, ReserveStockUnitData $data): BloodCollectionResource
+    {
+        return BloodCollectionResource::make($this->reserveStockUnit->handle($request->user(), $case, $caseDonor, $data));
     }
 }

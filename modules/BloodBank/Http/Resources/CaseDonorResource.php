@@ -20,6 +20,8 @@ final class CaseDonorResource extends JsonResource
             'id' => $this->id,
             'sequence_no' => $this->sequence_no,
             'status' => $this->status->value,
+            'source' => $this->source->value,
+            'unit_id' => $this->unit_id,
             'billing_id' => $this->billing_id,
             'deferral_reason' => $this->deferral_reason,
             'assessed_at' => $this->assessed_at?->toIso8601String(),

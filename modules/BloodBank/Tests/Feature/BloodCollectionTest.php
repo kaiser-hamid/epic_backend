@@ -189,7 +189,8 @@ it('makes the bag into its patient and stock units at collection and returns the
 
     expect($response->json('data.collected_units.0.label_command'))->toContain(',0,Rahim Uddin')
         ->and($response->json('data.collected_units.1.label_command'))->toContain('D2611000001')->not->toContain('Rahim Uddin')
-        ->and(PrintLog::where('document_type', 'bb.component_label')->count())->toBe(2)
+        ->and(PrintLog::where('document_type', 'bb.patient_label')->count())->toBe(1)
+        ->and(PrintLog::where('document_type', 'bb.storage_label')->count())->toBe(1)
         ->and(Unit::where('collection_id', Collection::sole()->id)->count())->toBe(2);
 });
 

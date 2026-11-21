@@ -19,6 +19,9 @@ use Modules\BloodBank\Enums\SampleSubject;
  * need a shelf, pre-filled from `default_location_type`. After a collect, `collected_collection_id` is the bag
  * just drawn and `collected_units` its units with `label_command`, logged as printed and sent to the printer.
  *
+ * A stock row (`source = stock`, its unit in `stock_unit`) has no bag: "Print patient label" is enabled while
+ * `can_reserve_stock_unit`. After it, `collected_units` holds that unit with its patient label `label_command`.
+ *
  * A Therapeutic Phlebotomy case (`case.service`) has no donors: `can_record_phlebotomy` enables "Mark done", and
  * `phlebotomy` is the record once saved (volume, `pre` / `post` vitals or null, notes, who and when).
  *
@@ -38,6 +41,7 @@ final class BloodCollectionResource extends JsonResource
             'donors' => array_map(fn (BloodCollectionRow $row): array => [
                 ...SubjectResource::make(new SubjectView(SampleSubject::Donor, caseDonor: $row->caseDonor))->toArray($request),
                 'is_collectable' => $row->isCollectable,
+                'can_reserve_stock_unit' => $row->canReserveStockUnit,
                 'collection' => $row->collection === null ? null : [
                     'id' => $row->collection->id,
                     'bag_no' => $row->collection->bag_no,
@@ -93,7 +97,7 @@ final class BloodCollectionResource extends JsonResource
 
     public function withResponse(Request $request, JsonResponse $response): void
     {
-        if ($this->resource->collectedCollectionId !== null) {
+        if ($this->resource->collectedCollectionId !== null || $this->resource->collectedUnits !== []) {
             $response->setStatusCode(201);
         }
     }

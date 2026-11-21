@@ -14,17 +14,23 @@ use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SerologyDecision;
 use Modules\BloodBank\Enums\SerologyTest;
 use Modules\BloodBank\Enums\TestResultStatus;
+use Modules\BloodBank\Enums\UnitStatus;
 use Modules\BloodBank\Exceptions\AmendmentReasonRequired;
 use Modules\BloodBank\Exceptions\CaseDonorNotInCase;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
 use Modules\BloodBank\Exceptions\ReactiveDonorNotAcceptable;
+use Modules\BloodBank\Exceptions\UnitExpired;
+use Modules\BloodBank\Exceptions\UnitNotAvailable;
 use Modules\BloodBank\Models\CaseDonor;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Sample;
 use Modules\BloodBank\Models\TestDefinition;
 use Modules\BloodBank\Models\TestResult;
+use Modules\BloodBank\Models\Unit;
 use Modules\BloodBank\Queries\ShowDonorSerology;
 use Modules\BloodBank\Services\DonorSerologyGate;
+use Modules\BloodBank\Services\StockUnitGate;
+use Modules\BloodBank\Services\StockUnitHold;
 use Modules\Shared\Audit\Contracts\AuditLogger;
 use Modules\Shared\Auth\Models\User;
 
@@ -33,6 +39,9 @@ use Modules\Shared\Auth\Models\User;
  * (`eligible`) / Defer. Results are versioned: a changed value gets a new version with the amendment reason and
  * the old one stays as history; an unchanged value is left alone. The blood group also becomes the donor's
  * blood group. A donor with a reactive screening result can only be deferred.
+ *
+ * A stock row (a stock unit standing in for a donor) is tested on its bag sample; its unit follows the decision
+ * (see moveStockUnit).
  */
 final class RecordDonorSerology
 {
@@ -40,6 +49,8 @@ final class RecordDonorSerology
         private readonly DonorSerologyGate $serologyGate,
         private readonly AuditLogger $auditLogger,
         private readonly ShowDonorSerology $showDonorSerology,
+        private readonly StockUnitGate $stockUnitGate,
+        private readonly StockUnitHold $stockUnitHold,
     ) {}
 
     /**
@@ -47,6 +58,8 @@ final class RecordDonorSerology
      * @throws CaseDonorNotInCase
      * @throws ReactiveDonorNotAcceptable
      * @throws AmendmentReasonRequired
+     * @throws UnitNotAvailable
+     * @throws UnitExpired
      */
     public function handle(User $actor, PatientCase $case, CaseDonor $caseDonor, RecordDonorSerologyData $data): DonorSerologyView
     {
@@ -85,6 +98,7 @@ final class RecordDonorSerology
             }
 
             $caseDonor->donor->update(['blood_group' => $data->bloodGroup]);
+            $this->moveStockUnit($actor, $case, $caseDonor, $data);
             $this->recordDecision($actor, $caseDonor, $data);
 
             $this->auditLogger->record(
@@ -167,6 +181,44 @@ final class RecordDonorSerology
                 'amendment_reason' => $current === null ? null : $data->amendmentReason,
             ]);
         }
+    }
+
+    /**
+     * A stock row's unit follows the decision: a Defer sends the held unit back to stock, or to quarantine when a
+     * screening result is reactive (or malaria found); switching back to Accept takes it again, if it is still in
+     * stock. Call before the decision is saved (the row still has its old status).
+     *
+     * @throws UnitNotAvailable
+     * @throws UnitExpired
+     */
+    private function moveStockUnit(User $actor, PatientCase $case, CaseDonor $caseDonor, RecordDonorSerologyData $data): void
+    {
+        if (! $caseDonor->isStock() || $caseDonor->unit_id === null) {
+            return;
+        }
+
+        $wasDeferred = $caseDonor->status === CaseDonorStatus::Deferred;
+        $isDeferred = $data->decision->caseDonorStatus() === CaseDonorStatus::Deferred;
+
+        if ($wasDeferred === $isDeferred) {
+            return;
+        }
+
+        $unit = Unit::query()->lockForUpdate()->findOrFail($caseDonor->unit_id);
+
+        if ($isDeferred) {
+            if ($unit->status === UnitStatus::Held && $unit->case_id === $case->id) {
+                $this->stockUnitHold->release($actor, $case, $unit, "Deferred at serology: {$data->deferralReason}", quarantine: $data->hasReactiveResult());
+            }
+
+            return;
+        }
+
+        if (($refusal = $this->stockUnitGate->retakeRefusal($unit)) !== null) {
+            throw $refusal;
+        }
+
+        $this->stockUnitHold->hold($actor, $case, $unit);
     }
 
     /**

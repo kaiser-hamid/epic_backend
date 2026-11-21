@@ -17,23 +17,31 @@ use Modules\BloodBank\Enums\SampleStatus;
 use Modules\BloodBank\Enums\SampleSubject;
 use Modules\BloodBank\Exceptions\CaseDonorNotInCase;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
+use Modules\BloodBank\Exceptions\CaseTakesNoBlood;
 use Modules\BloodBank\Exceptions\DonorDeferred;
 use Modules\BloodBank\Exceptions\DonorNotFit;
 use Modules\BloodBank\Exceptions\PatientSampleNotNeeded;
 use Modules\BloodBank\Exceptions\SampleAlreadyCollected;
+use Modules\BloodBank\Exceptions\UnitAlreadyInCase;
+use Modules\BloodBank\Exceptions\UnitExpired;
+use Modules\BloodBank\Exceptions\UnitNotAvailable;
+use Modules\BloodBank\Exceptions\UnitNotFound;
+use Modules\BloodBank\Exceptions\UnitNotNeeded;
 use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Sample;
 use Modules\BloodBank\Queries\ShowSampleCollection;
 use Modules\BloodBank\Services\CaseCloser;
 use Modules\BloodBank\Services\CaseSampleSubjects;
 use Modules\BloodBank\Services\SampleNumber;
+use Modules\BloodBank\Services\StockUnitIntake;
 use Modules\Shared\Audit\Contracts\AuditLogger;
 use Modules\Shared\Auth\Models\User;
 use Modules\Shared\Printing\Contracts\PrintLogger;
 
 /**
  * Collects one sample per ticked row of the collection screen (the patient and/or donors of the case), each
- * with its own sample no. All or nothing: one row that cannot be collected rejects the whole request. The case
+ * with its own sample no. A scanned stock bag row (`unit_no`) is checked again, added to the case as a stock row
+ * and held for it (`StockUnitIntake`) before its sample is drawn, so the bag is held from its sample on. All or nothing: one row that cannot be collected rejects the whole request. The case
  * row is locked so a double click cannot draw two samples for the same subject. Each new sample's label counts as
  * printed (first print, logged here) and the response carries its printer command for the print service.
  *
@@ -49,10 +57,17 @@ final class CollectSamples
         private readonly ShowSampleCollection $showSampleCollection,
         private readonly PrintLogger $printLogger,
         private readonly CaseCloser $caseCloser,
+        private readonly StockUnitIntake $stockUnitIntake,
     ) {}
 
     /**
      * @throws CaseNotOpen
+     * @throws UnitNotFound
+     * @throws UnitNotAvailable
+     * @throws UnitAlreadyInCase
+     * @throws UnitExpired
+     * @throws UnitNotNeeded
+     * @throws CaseTakesNoBlood
      * @throws PatientSampleNotNeeded
      * @throws CaseDonorNotInCase
      * @throws DonorDeferred
@@ -81,12 +96,17 @@ final class CollectSamples
                     throw new PatientSampleNotNeeded;
                 }
 
-                $this->ensureCollectable($this->find($subjects, $requested));
+                if ($requested->isStockBag()) {
+                    $caseDonorId = $this->stockUnitIntake->admit($actor, $case, (string) $requested->unitNo)->id;
+                } else {
+                    $this->ensureCollectable($this->find($subjects, $requested));
+                    $caseDonorId = $requested->caseDonorId;
+                }
 
                 $sample = Sample::create([
                     'sample_no' => $this->sampleNumber->next(),
                     'case_id' => $case->id,
-                    'case_donor_id' => $requested->caseDonorId,
+                    'case_donor_id' => $caseDonorId,
                     'subject_type' => $requested->subjectType,
                     'collected_at' => $collectedAt,
                     'collected_by' => $actor->id,
@@ -96,6 +116,7 @@ final class CollectSamples
                 $this->auditLogger->record(BloodBankAuditAction::SampleCollected, $sample, newValues: [
                     ...$sample->only(['sample_no', 'case_id', 'case_donor_id', 'subject_type', 'collected_at']),
                     'case_no' => $case->case_no,
+                    ...($requested->isStockBag() ? ['unit_no' => trim((string) $requested->unitNo)] : []),
                 ]);
 
                 $this->printLogger->record(PrintDocumentType::SampleLabel, $sample, $actor, copies: $this->labelCopies($case, $sample));

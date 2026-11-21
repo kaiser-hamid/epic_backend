@@ -18,9 +18,11 @@ use Modules\Shared\Printing\Contracts\PrintLogger;
 use Modules\Shared\Printing\Exceptions\ReprintReasonRequired;
 
 /**
- * Records the print of one or more component labels of units made from this case's bags and returns what goes
- * on each label with its printer command: the barcode is the unit no, with the donor's screening results and,
- * for a reserved unit, the patient it is for. A reprint without a reason rejects the whole batch, so either every label is logged or none.
+ * Records the print of one or more unit labels of units made from this case's bags or taken for this case (a
+ * stock unit comes from another case's bag) and returns what goes on each label with its printer command: the
+ * barcode is the unit no, with the donor's screening results and, for a reserved or issued unit, the patient it is
+ * for. Each unit prints the label of its status (storage or patient label), each counted on its own. A reprint
+ * without a reason rejects the whole batch, so either every label is logged or none.
  */
 final class PrintUnitLabels
 {
@@ -41,7 +43,9 @@ final class PrintUnitLabels
     {
         $units = Unit::query()
             ->whereKey($data->unitIds)
-            ->whereHas('collection.caseDonor', fn (Builder $query) => $query->where('case_id', $case->id))
+            ->where(fn (Builder $query) => $query
+                ->whereHas('collection.caseDonor', fn (Builder $query) => $query->where('case_id', $case->id))
+                ->orWhere('case_id', $case->id))
             ->with(['componentType', 'storageLocation', 'collection.caseDonor.donor', 'collection.caseDonor.samples.results.testDefinition', 'patientCase'])
             ->get()
             ->keyBy('id');
@@ -60,7 +64,7 @@ final class PrintUnitLabels
                 $unit,
                 $unit->patientCase === null ? null : ($patients[$unit->patientCase->patient_master_id] ?? null),
                 $this->screeningResults->forCaseDonor($unit->collection->caseDonor),
-                $this->printLogger->record(PrintDocumentType::ComponentLabel, $unit, $actor, $data->reprintReason),
+                $this->printLogger->record(PrintDocumentType::unitLabelFor($unit->status), $unit, $actor, $data->reprintReason),
             );
         }, $data->unitIds));
 

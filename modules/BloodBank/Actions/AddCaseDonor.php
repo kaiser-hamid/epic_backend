@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Modules\BloodBank\Data\AddCaseDonorData;
 use Modules\BloodBank\Data\CaseView;
 use Modules\BloodBank\Enums\BloodBankAuditAction;
+use Modules\BloodBank\Enums\CaseDonorSource;
 use Modules\BloodBank\Enums\CaseDonorStatus;
 use Modules\BloodBank\Enums\CaseStatus;
 use Modules\BloodBank\Exceptions\CaseNotOpen;
@@ -62,7 +63,7 @@ final class AddCaseDonor
                 throw new CaseTakesNoDonors;
             }
 
-            if ($data->donorId !== null && $case->caseDonors()->where('donor_id', $data->donorId)->exists()) {
+            if ($data->donorId !== null && $case->caseDonors()->where('source', CaseDonorSource::Donor)->where('donor_id', $data->donorId)->exists()) {
                 throw new DonorAlreadyInCase;
             }
 

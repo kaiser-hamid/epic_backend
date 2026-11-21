@@ -15,6 +15,7 @@ use Modules\BloodBank\Models\PatientCase;
 use Modules\BloodBank\Models\Unit;
 use Modules\BloodBank\Services\BagPlan;
 use Modules\BloodBank\Services\BloodCollectionGate;
+use Modules\BloodBank\Services\StockUnitGate;
 use Modules\BloodBank\Services\UnitLabelCommands;
 use Modules\Shared\Billing\Contracts\InvoiceDirectory;
 use Modules\Shared\Branch\Contracts\CurrentBranch;
@@ -25,8 +26,9 @@ use Modules\Shared\Printing\Models\PrintLog;
 /**
  * The blood collection screen: the session branch's case (found by an invoice or donor no scan, or opened
  * directly), its patient and invoice, one row per case donor with its bag and whether blood can be collected, and
- * the plan for the next bag. A donor is collectable only while the case still needs something. A Therapeutic
- * Phlebotomy case shows its record instead (or that it can be recorded).
+ * the plan for the next bag. A donor is collectable only while the case still needs something. A stock row has
+ * no bag; its patient label can be printed once it is accepted at serology. A Therapeutic Phlebotomy case shows
+ * its record instead (or that it can be recorded).
  */
 final class ShowBloodCollection
 {
@@ -37,6 +39,7 @@ final class ShowBloodCollection
         private readonly BloodCollectionGate $collectionGate,
         private readonly BagPlan $bagPlan,
         private readonly UnitLabelCommands $labelCommands,
+        private readonly StockUnitGate $stockUnitGate,
     ) {}
 
     /**
@@ -76,7 +79,14 @@ final class ShowBloodCollection
      */
     public function get(PatientCase $case, ?int $caseDonorId = null, ?int $collectedCollectionId = null, array $collectedUnitPrints = []): BloodCollectionView
     {
-        $case->load(['components.componentType', 'caseDonors.donor', 'caseDonors.collections.collector', 'phlebotomy.performer']);
+        $case->load([
+            'components.componentType',
+            'caseDonors.donor',
+            'caseDonors.unit.componentType',
+            'caseDonors.unit.storageLocation',
+            'caseDonors.collections.collector',
+            'phlebotomy.performer',
+        ]);
 
         $isOpen = $case->status === CaseStatus::Open;
         $bagPlan = $isOpen ? $this->bagPlan->for($case) : [];
@@ -88,6 +98,7 @@ final class ShowBloodCollection
                 $caseDonor,
                 $this->collectionGate->collectionFor($caseDonor),
                 $bagPlan !== [] && $this->collectionGate->refusal($caseDonor) === null,
+                $isOpen && $this->stockUnitGate->reserveRefusal($caseDonor) === null,
             ))
             ->values()
             ->all();

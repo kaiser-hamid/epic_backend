@@ -129,7 +129,7 @@ final class CollectBlood
                 ]);
 
                 $this->movements->record($unit, $actor, occurredAt: $collectedAt);
-                $unitPrints[$unit->id] = $this->printLogger->record(PrintDocumentType::ComponentLabel, $unit, $actor);
+                $unitPrints[$unit->id] = $this->printLogger->record(PrintDocumentType::unitLabelFor($unit->status), $unit, $actor);
             }
 
             $this->auditLogger->record(BloodBankAuditAction::BloodCollected, $collection, newValues: [

@@ -30,6 +30,11 @@ use Modules\BloodBank\Models\Unit;
 final class BagPlan
 {
     /**
+     * A unit in one of these statuses counts as the case's: a stock unit held for it, or a unit reserved or issued.
+     */
+    public const array HOLDING_STATUSES = [UnitStatus::Held, UnitStatus::Reserved, UnitStatus::Issued];
+
+    /**
      * @var list<array{needs: list<string>, makes: list<string>}>
      */
     private const array RECIPES = [
@@ -79,14 +84,8 @@ final class BagPlan
     }
 
     /**
-     * Units the case was billed for and does not hold yet (reserved or issued), per component type id; only types
-     * still needed.
-     *
-     * @return array<int, int>
-     */
-    /**
      * Narrows a case query to the cases whose next bag has a plan: a billed component with a recipe is not yet
-     * all reserved or issued (the list-side match of a non-empty `for()`).
+     * all held, reserved or issued (the list-side match of a non-empty `for()`).
      *
      * @param  Builder<PatientCase>  $cases
      * @return Builder<PatientCase>
@@ -101,13 +100,19 @@ final class BagPlan
                 ->selectRaw('count(*)')
                 ->whereColumn('bb_units.case_id', 'bb_case_components.case_id')
                 ->whereColumn('bb_units.component_type_id', 'bb_case_components.component_type_id')
-                ->whereIn('bb_units.status', [UnitStatus::Reserved, UnitStatus::Issued])));
+                ->whereIn('bb_units.status', self::HOLDING_STATUSES)));
     }
 
+    /**
+     * Units the case was billed for and does not hold yet (held from stock, reserved or issued), per component
+     * type id; only types still needed.
+     *
+     * @return array<int, int>
+     */
     public function neededCounts(PatientCase $case): array
     {
         $held = $case->units()
-            ->whereIn('status', [UnitStatus::Reserved, UnitStatus::Issued])
+            ->whereIn('status', self::HOLDING_STATUSES)
             ->selectRaw('component_type_id, count(*) as aggregate')
             ->groupBy('component_type_id')
             ->pluck('aggregate', 'component_type_id');

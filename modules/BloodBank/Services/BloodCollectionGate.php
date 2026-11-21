@@ -5,6 +5,7 @@ namespace Modules\BloodBank\Services;
 use Modules\BloodBank\Enums\CaseDonorStatus;
 use Modules\BloodBank\Enums\CollectionStatus;
 use Modules\BloodBank\Exceptions\BagAlreadyCollected;
+use Modules\BloodBank\Exceptions\CaseDonorIsStockUnit;
 use Modules\BloodBank\Exceptions\DonorDeferred;
 use Modules\BloodBank\Exceptions\DonorNotEligible;
 use Modules\BloodBank\Exceptions\DonorNotFit;
@@ -14,7 +15,8 @@ use Modules\Shared\Support\Exceptions\DomainException;
 
 /**
  * Whether blood can be collected from a case donor: only an `eligible` donor (accepted at the physical exam and
- * at serology) with no bag yet. One bag per case donor; a cancelled bag does not count.
+ * at serology) with no bag yet. One bag per case donor; a cancelled bag does not count. A stock row has no bag to
+ * collect: its patient label is printed instead (StockUnitGate).
  */
 final class BloodCollectionGate
 {
@@ -37,6 +39,7 @@ final class BloodCollectionGate
     public function refusal(CaseDonor $caseDonor): ?DomainException
     {
         return match (true) {
+            $caseDonor->isStock() => new CaseDonorIsStockUnit,
             $caseDonor->status === CaseDonorStatus::Collected, $this->collectionFor($caseDonor) !== null => new BagAlreadyCollected,
             $caseDonor->status === CaseDonorStatus::Registered => new DonorNotFit,
             $caseDonor->status === CaseDonorStatus::Fit => new DonorNotEligible,
